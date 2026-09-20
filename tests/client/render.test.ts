@@ -10,6 +10,7 @@ import { DEFAULT_CONFIG, type UsageStateConfig } from '../../src/shared/config.t
 import type { SourceCatalog } from '../../src/shared/display.ts'
 import type { UsageSnapshot } from '../../src/shared/types.ts'
 import type { CredentialsRemoteLike } from '../../src/client/context.ts'
+import type { CredentialDescription } from '../../src/shared/rpc.ts'
 
 /**
  * Server-side renders of the real components. Effects (polling, settings
@@ -54,7 +55,7 @@ function configWith(models: UsageStateConfig['models'], sources: UsageStateConfi
 function storeWith(input: {
   catalog?: SourceCatalog
   snapshots?: Record<string, UsageSnapshot>
-  credentials?: Record<string, unknown>
+  credentials?: Record<string, CredentialDescription>
   models?: Array<{ provider: string; providerName: string; model: string; name: string }>
 }) {
   const state = {
@@ -68,8 +69,21 @@ function storeWith(input: {
     credentialsError: undefined,
     modelsError: undefined,
   }
-  return { getSnapshot: () => state, subscribe: () => () => undefined }
+  const source = {
+    getSnapshot: () => state,
+    subscribe: () => () => undefined,
+    refresh: async () => undefined,
+    refreshCredentials: async () => undefined,
+    refreshModels: async () => undefined,
+  }
+  return source
 }
+
+/** The status line only needs the projection; the platform types it as a generic hook. */
+const projectionOf = (selection: { provider: string; model: string } | undefined) =>
+  ((_key: string) => (selection === undefined ? undefined : { next: selection, lastUsed: null })) as <T>(
+    key: string,
+  ) => T | undefined
 
 function settingsWith(config: UsageStateConfig) {
   const snapshot = { status: 'ready' as const, value: config, revision: 1, writable: true, mode: 'host' as const }
@@ -109,7 +123,7 @@ test('the status line renders a balance for the session model', () => {
       variant: 'dock',
       usageState: store,
       settings: settingsWith(config),
-      useProjection: () => ({ next: { provider: 'deepseek-official', model: 'deepseek-flash' }, lastUsed: null }),
+      useProjection: projectionOf({ provider: 'deepseek-official', model: 'deepseek-flash' }),
     }),
   )
 
@@ -154,7 +168,7 @@ test('the turn-tail variant renders quota windows with severity, countdown and b
       variant: 'turnTail',
       usageState: store,
       settings: settingsWith(config),
-      useProjection: () => ({ next: { provider: 'zai', model: 'glm-4.6' }, lastUsed: null }),
+      useProjection: projectionOf({ provider: 'zai', model: 'glm-4.6' }),
     }),
   )
 
@@ -175,11 +189,11 @@ test('a hidden or unselected model renders nothing at all', () => {
     variant: 'dock' as const,
     usageState: storeWith({ catalog: CATALOG }),
     settings: hidden,
-    useProjection: () => ({ next: { provider: 'p', model: 'm' }, lastUsed: null }),
+    useProjection: projectionOf({ provider: 'p', model: 'm' }),
   }
   assert.equal(renderToStaticMarkup(h(StatusLine, props)), '')
 
-  const noSelection = renderToStaticMarkup(h(StatusLine, { ...props, useProjection: () => undefined }))
+  const noSelection = renderToStaticMarkup(h(StatusLine, { ...props, useProjection: projectionOf(undefined) }))
   assert.equal(noSelection, '')
 })
 
@@ -190,7 +204,7 @@ test('an unconfigured model says so instead of showing a number', () => {
       variant: 'dock',
       usageState: storeWith({ catalog: CATALOG }),
       settings: settingsWith(configWith([])),
-      useProjection: () => ({ next: { provider: 'new', model: 'unconfigured' }, lastUsed: null }),
+      useProjection: projectionOf({ provider: 'new', model: 'unconfigured' }),
     }),
   )
 
@@ -218,7 +232,7 @@ test('a stale reading stays visible and is marked', () => {
         },
       }),
       settings: settingsWith(config),
-      useProjection: () => ({ next: { provider: 'deepseek-official', model: 'deepseek-flash' }, lastUsed: null }),
+      useProjection: projectionOf({ provider: 'deepseek-official', model: 'deepseek-flash' }),
     }),
   )
 

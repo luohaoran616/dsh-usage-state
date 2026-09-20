@@ -5,16 +5,16 @@ import { configureModel, reorderModels, type ModelRow } from './model-rows.ts'
 import { buildModelRows } from './model-rows.ts'
 import { rowKey } from './model-rows.ts'
 import { useSettingsValue, useStoreState } from './hooks.ts'
-import type { UsageStateClientStore } from './store.ts'
+import type { UsageStateClientSource } from './status-source.ts'
 import type { CredentialsRemoteLike, SettingsScopeLike, Translate } from './context.ts'
-import type { CredentialDescription } from '../shared/rpc.ts'
+import type { CredentialCandidate, CredentialDescription } from '../shared/rpc.ts'
 import type { ModelMode, UsageStateConfig } from '../shared/config.ts'
 import { normalizeConfig } from '../shared/config.ts'
 
 export interface SettingsSectionProps {
   close: () => void
   t: Translate
-  usageState: UsageStateClientStore
+  usageState: UsageStateClientSource
   settings: SettingsScopeLike<UsageStateConfig>
   credentials: CredentialsRemoteLike | undefined
 }
@@ -134,7 +134,7 @@ function CredentialPanel(props: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       <div style={ROW}>
         <span style={MUTED}>{t('credential')}</span>
-        {(candidates.length === 0 ? props.refs.map(ref => ({ ref, configured: false })) : candidates).map(candidate => (
+        {(candidates.length === 0 ? props.refs.map((ref): CredentialCandidate => ({ ref, configured: false })) : candidates).map(candidate => (
           <span key={candidate.ref} style={ROW}>
             <code style={{ fontSize: '11px' }}>{candidate.ref}</code>
             {candidate.configured ? (

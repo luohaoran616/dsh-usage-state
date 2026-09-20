@@ -8,7 +8,10 @@ import { en, LOCALE_NS, zh } from './locales.ts'
 import { UsageStateClientStore } from './store.ts'
 import type { ClientContextLike, ModelCatalogLike, SettingsScopeLike } from './context.ts'
 
-export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.credentials']
+// `remote.session` carries the model catalog and `remote.credentials` the key
+// store; both are platform-provided service names that must be declared here or
+// `ctx.remote.<ns>` is undefined at call time.
+export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.session', 'remote.credentials']
 
 const USAGE_STATE_NS = 'usage-state'
 const POLL_INTERVAL_MS = 30_000
@@ -89,6 +92,9 @@ export function apply(ctx: ClientContextLike): void {
         }
         dispose = off
         void store.refresh(false)
+        // The settings page may have mounted before the contribution was live.
+        void store.refreshModels()
+        void store.refreshCredentials()
       },
       () => undefined,
     )
@@ -101,6 +107,9 @@ export function apply(ctx: ClientContextLike): void {
   ctx.effect(() => {
     const timer = setInterval(() => {
       void store.refresh(false)
+      // A model catalog lookup can lose a race at boot; keep trying until it lands
+      // instead of showing an empty settings page forever.
+      if (store.getSnapshot().models.length === 0) void store.refreshModels()
     }, POLL_INTERVAL_MS)
 
     const disposers = [
