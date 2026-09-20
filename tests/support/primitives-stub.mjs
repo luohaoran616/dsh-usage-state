@@ -42,3 +42,7 @@ export function StateDot({ state }) {
 export function Tooltip({ label, side, delayMs, disabled, maxWidth, children }) {
   return h('span', { 'data-tooltip': typeof label === 'function' ? label() : label, 'data-side': side ?? 'top' }, children)
 }
+
+export function IconDataOutline16(props) {
+  return h('span', { 'data-icon': 'data', ...props })
+}

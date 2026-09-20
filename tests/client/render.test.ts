@@ -143,46 +143,50 @@ test('the status line renders a balance for the session model', () => {
   assert.match(html, /data-tooltip="Source DeepSeek · Mode API balance"/)
 })
 
-test('the completed-turn variant renders quota windows with severity, countdown and bar', () => {
+test('the completed-turn variant is compact: model icon, percentages only, at the end of the row', () => {
   const config = configWith({ zai: { mode: 'coding-plan' } })
   const catalog: SourceCatalog = [...CATALOG]
-  const store = storeWith({
-    catalog,
-    snapshots: {
-      'zai:coding-plan': {
-        sourceId: 'zai',
-        mode: 'coding-plan',
-        balances: [],
-        windows: [
-          { id: '5h', usedPercent: 42, resetsAt: Date.now() + 4 * 3600_000 + 60_000 },
-          { id: '7d', usedPercent: 96 },
-        ],
-        fetchedAt: 1_000,
-      },
-    },
-  })
+  const snapshot = {
+    sourceId: 'zai',
+    mode: 'coding-plan' as const,
+    balances: [],
+    windows: [
+      { id: '5h', usedPercent: 42, resetsAt: Date.now() + 4 * 3600_000 + 60_000 },
+      { id: '7d', usedPercent: 96 },
+    ],
+    fetchedAt: 1_000,
+  }
+  const props = {
+    t,
+    usageState: storeWith({ catalog, snapshots: { 'zai:coding-plan': snapshot } }),
+    settings: settingsWith(config),
+    useProjection: projectionOf({ provider: 'zai', model: 'glm-4.6' }),
+  }
 
-  const html = renderToStaticMarkup(
-    h(StatusLine, {
-      t,
-      variant: 'actions',
-      usageState: store,
-      settings: settingsWith(config),
-      useProjection: projectionOf({ provider: 'zai', model: 'glm-4.6' }),
-    }),
-  )
+  const html = renderToStaticMarkup(h(StatusLine, { ...props, variant: 'actions' }))
 
   assert.match(html, /data-usage-state="actions"/)
-  // The action strip owns the layout, so this variant must not carry dock geometry.
-  assert.doesNotMatch(html, /max-width:var\(--dsh-chat-content-width\)/)
-  assert.match(html, /z\.ai \/ GLM/)
+  // The provider label becomes the icon the model seat uses...
+  assert.match(html, /data-icon="data"/)
+  assert.doesNotMatch(html, />z\.ai \/ GLM</)
+  // ...and the row keeps only the percentages.
   assert.match(html, /5h 42%/)
-  assert.match(html, /\(4h\d+m\)/)
   assert.match(html, /7d 96%/)
-  assert.match(html, /data-tooltip="[^"]*Resets at [^"]*Source z\.ai \/ GLM · Mode Coding plan"/)
-  // 96% crosses the critical threshold, so it must use the error colour.
+  assert.match(html, /order:1/)
+  assert.doesNotMatch(html, /\(4h\d+m\)/, 'the countdown belongs to the tooltip in this variant')
+  assert.doesNotMatch(html, /[\u2588\u2591]/, 'the progress bar belongs to the dock row')
+  assert.doesNotMatch(html, /max-width:var\(--dsh-chat-content-width\)/)
+  // Threshold colouring still applies, and every detail stays on hover.
   assert.match(html, /--dsw-alias-state-error-primary/)
-  assert.match(html, /--dsw-alias-state-warn-primary|--dsw-alias-label-secondary/)
+  assert.match(html, /data-tooltip="[^"]*Resets at [^"]*Source z\.ai \/ GLM · Mode Coding plan"/)
+
+  // The dock row keeps the full form: label + countdown + progress bar.
+  const dock = renderToStaticMarkup(h(StatusLine, { ...props, variant: 'dock' }))
+  assert.match(dock, />z\.ai \/ GLM</)
+  assert.match(dock, /\(4h\d+m\)/)
+  assert.match(dock, /[\u2588\u2591]/)
+  assert.match(dock, /max-width:var\(--dsh-chat-content-width\)/)
+  assert.doesNotMatch(dock, /data-icon="data"/)
 })
 
 test('a hidden or unselected model renders nothing at all', () => {

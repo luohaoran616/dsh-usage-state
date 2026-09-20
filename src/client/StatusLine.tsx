@@ -1,11 +1,11 @@
 import { Fragment } from 'react'
-import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDataOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import { describeStatus, type ModelStatus, type Severity } from '../shared/display.ts'
 import { resolveProvider } from '../shared/providers.ts'
 import type { UsageStateConfig } from '../shared/config.ts'
 import type { UsageStateSnapshotSource } from './status-source.ts'
-import { statusParts, SEPARATOR, type StatusPart } from './status-text.ts'
+import { compactParts, statusParts, SEPARATOR, type StatusPart } from './status-text.ts'
 import { useNow, useSettingsValue, useStoreState } from './hooks.ts'
 import type { ModelSelectionProjectionLike, SettingsSource, Translate } from './context.ts'
 import type { StatusLineVariant } from './slots.ts'
@@ -42,14 +42,22 @@ const DOCK_STYLE = {
 
 /**
  * The completed-turn mount point is the platform's action strip: a 28px row that
- * holds the turn's icons and its own token/time panels. Keep our line a single
- * compact flex item (no width or centering: the strip owns the layout).
+ * holds the turn's icons, its own token/time pills, and the timestamp.
+ *
+ * Our entry is placed between the copy and branch controls by the platform
+ * (`MessageIconActions.extraActions`), which is not where a reading belongs, so
+ * `order: 1` moves it to the end of that flex row instead. The label becomes an
+ * icon and the countdown/progress bar drop out (see `compactParts`); every detail
+ * stays in the tooltip.
  */
 const ACTIONS_STYLE = {
   ...BASE_STYLE,
-  justifyContent: 'flex-start',
+  order: 1,
+  justifyContent: 'flex-end',
   fontSize: '12px',
 }
+
+const ICON_STYLE = { display: 'inline-flex', alignItems: 'center', color: 'var(--dsw-alias-label-tertiary)' }
 
 const LABEL_STYLE = { color: 'var(--dsw-alias-label-tertiary)' }
 const SEPARATOR_STYLE = { color: 'var(--dsw-alias-separator-primary, var(--dsw-alias-label-dimmed))' }
@@ -148,7 +156,7 @@ export function StatusLine(props: StatusLineProps) {
       ? (state.catalog.find(entry => entry.id === status.sourceId)?.displayName ?? status.sourceId)
       : ''
 
-  const parts = statusParts({
+  const fullParts = statusParts({
     segments: describeStatus({ sourceLabel, status, snapshot, display: config.display, now }),
     t,
     now,
@@ -157,13 +165,27 @@ export function StatusLine(props: StatusLineProps) {
       ? { modeLabel: status.mode === 'api' ? t('modeApi') : t('modeCodingPlan') }
       : {}),
   })
-  if (parts.length === 0) return null
+  if (fullParts.length === 0) return null
+
+  const compact = props.variant === 'actions'
+  const parts = compact ? compactParts(fullParts) : fullParts
+  // The icon replaces the provider label, so it inherits that label's tooltip.
+  const iconTooltip = fullParts.find(part => part.kind === 'label')?.tooltip
 
   return (
-    <div data-usage-state={props.variant} style={props.variant === 'dock' ? DOCK_STYLE : ACTIONS_STYLE}>
+    <div data-usage-state={props.variant} style={compact ? ACTIONS_STYLE : DOCK_STYLE}>
+      {compact
+        ? withTooltip(
+            <span style={ICON_STYLE}>
+              <IconDataOutline16 size={16} />
+            </span>,
+            iconTooltip,
+            -1,
+          )
+        : null}
       {parts.map((part, index) => (
         <Fragment key={index}>
-          {index > 0 ? (
+          {index > 0 || compact ? (
             <span style={SEPARATOR_STYLE} aria-hidden="true">
               {SEPARATOR}
             </span>
