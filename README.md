@@ -27,16 +27,17 @@ dsh plugin --profile web add github:takboo/dsh-usage-state
 
 ## 状态
 
-**设计共识已达成，实现尚未开始。**
+**实现完成、已发布、已在本机验收通过。**
 
-- ✅ 需求澄清（grilling）：全部决策已闭环 → [`docs/design-consensus.md`](docs/design-consensus.md)
-- ✅ 事实侦察：平台 API、各家余额/额度接口、被替代插件的源码剖析 → [`docs/research/`](docs/research/README.md)
-- ⬜ 实现（见共识第 12 节的顺序）
-- ✅ 实现完成：宿主半边（4 家适配器 / 缓存调度 / 凭据 / 设置命名空间 / RPC）+ 客户端半边（双语状态行 / 设置页）+ 构建产物（`lib/`）
-- ✅ 已装入本机 web profile（`dsh plugin add`，profile 树里能看到 `usage-state` 行；宿主入口、typert 清单、client bundle 均已从 profile 视角验证可解析加载）
-- ⬜ UI 验收：需要**重启 DSH**（bundle patch 只在启动时读取），然后走下面的验收清单
-- ✅ 已发布：<https://github.com/takboo/dsh-usage-state>（公开仓库；从 GitHub 全新克隆验证过产物完整、宿主入口零依赖可加载、client bundle 信封正确、清单通过平台 `validateTypertManifest`）
-- ⬜ 卸载 `dsh-cost-meter`（按共识，等 UI 验收通过后再卸）
+- ✅ 实现：宿主半边（四家数据源 / 缓存与调度 / 凭据 / 设置命名空间 / Typert RPC）+ 客户端半边（双语状态行 / provider 级设置页）+ 构建产物（`lib/`）
+- ✅ 已发布：<https://github.com/takboo/dsh-usage-state>
+- ✅ 真机验收：DeepSeek 余额（`DeepSeek · ¥58.13`，随消耗实时变化）、z.ai / GLM 额度（`z.ai / GLM · 5h 12% (4h0m) ▓▯▯▯ · 7d 59% (3d17h)`）、悬浮提示、失败如实显示、设置页 provider 三态与排序
+- ✅ 已卸载 `dsh-cost-meter`（重启后生效；历史数据 `~/.dsh/storages/cost-meter/` 保留未动）
+- ✅ `dsh plugin add github:takboo/dsh-usage-state` 已实测可装（在临时目录安装发布包，宿主入口 / typert 清单 / client bundle / cordis.patch.yml 均校验通过）
+
+**尚未用真实 key 覆盖的部分**（代码与单测已就绪）：Kimi（Moonshot 余额 + Kimi Code 窗口）、Sub2API（`/v1/usage`）、阈值变色的视觉效果（12%/59% 未触发阈值；把黄色阈值临时改成 10 即可看到）。
+
+出问题时的一键恢复：`dsh plugin --profile web remove dsh-usage-state`。
 
 ## v1 支持的数据源
 
