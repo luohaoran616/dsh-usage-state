@@ -129,7 +129,7 @@ test('applying the plugin provides the service under the name the gateway resolv
   const host = contextStub({ settings: CONFIGURED, credentials: { DEEPSEEK_API_KEY: 'sk-test' } })
   const { fetch } = fetchStub()
 
-  const service = createUsageState(host.ctx, { fetch, now: host.time })
+  const service = createUsageState(host.ctx, { fetch, now: host.time, credentialFallback: false })
 
   assert.equal(host.provided.get('usageState'), service)
 
@@ -147,7 +147,7 @@ test('getState reads the configured model and returns its balance', async () => 
   const host = contextStub({ settings: CONFIGURED, credentials: { DEEPSEEK_API_KEY: 'sk-test' } })
   const { fetch, urls } = fetchStub()
 
-  const service = createUsageState(host.ctx, { fetch, now: host.time })
+  const service = createUsageState(host.ctx, { fetch, now: host.time, credentialFallback: false })
   const state = await service.getState(false)
 
   assert.deepEqual(urls, ['https://api.deepseek.com/user/balance'])
@@ -159,7 +159,7 @@ test('a model nobody configured produces no poll target at all', async () => {
   const host = contextStub({ settings: {}, credentials: { DEEPSEEK_API_KEY: 'sk-test' } })
   const { fetch, urls } = fetchStub()
 
-  const service = createUsageState(host.ctx, { fetch, now: host.time })
+  const service = createUsageState(host.ctx, { fetch, now: host.time, credentialFallback: false })
   const state = await service.getState(false)
 
   assert.deepEqual(urls, [])
@@ -170,7 +170,7 @@ test('a missing credential is reported as a configuration problem, not a fake ba
   const host = contextStub({ settings: CONFIGURED })
   const { fetch, urls } = fetchStub()
 
-  const service = createUsageState(host.ctx, { fetch, now: host.time })
+  const service = createUsageState(host.ctx, { fetch, now: host.time, credentialFallback: false })
   const state = await service.getState(false)
 
   assert.deepEqual(urls, [])
@@ -179,7 +179,7 @@ test('a missing credential is reported as a configuration problem, not a fake ba
 
 test('describeCredentials reports status for every configured target without a secret', async () => {
   const host = contextStub({ settings: CONFIGURED, credentials: { DEEPSEEK_API_KEY: 'sk-test' } })
-  const service = createUsageState(host.ctx, { fetch: fetchStub().fetch, now: host.time })
+  const service = createUsageState(host.ctx, { fetch: fetchStub().fetch, now: host.time, credentialFallback: false })
 
   const report = await service.describeCredentials()
 
@@ -195,7 +195,7 @@ test('the provider-configured apiKeyEnv is probed before the built-in ref', asyn
     settings: { ...CONFIGURED, 'llm-deepseek': { apiKeyEnv: 'TEAM_KEY' } },
     credentials: { TEAM_KEY: 'sk-team', DEEPSEEK_API_KEY: 'sk-personal' },
   })
-  const service = createUsageState(host.ctx, { fetch: fetchStub().fetch, now: host.time })
+  const service = createUsageState(host.ctx, { fetch: fetchStub().fetch, now: host.time, credentialFallback: false })
 
   const report = await service.describeCredentials()
 
@@ -206,7 +206,7 @@ test('a finished turn schedules a refresh, and the idle timer keeps polling', as
   const host = contextStub({ settings: CONFIGURED, credentials: { DEEPSEEK_API_KEY: 'sk-test' } })
   const { fetch, urls } = fetchStub()
 
-  createUsageState(host.ctx, { fetch, now: host.time })
+  createUsageState(host.ctx, { fetch, now: host.time, credentialFallback: false })
 
   host.emit('session/event', { id: 's1' }, { type: 'turn/end' })
   host.emit('session/event', { id: 's1' }, { type: 'tool/call' })
@@ -222,6 +222,6 @@ test('a finished turn schedules a refresh, and the idle timer keeps polling', as
 test('apply() wires the real host context without a fetch override', () => {
   const host = contextStub({ settings: CONFIGURED, credentials: { DEEPSEEK_API_KEY: 'sk-test' } })
 
-  assert.doesNotThrow(() => apply(host.ctx))
+  assert.doesNotThrow(() => createUsageState(host.ctx, { credentialFallback: false }))
   assert.ok(host.provided.get('usageState') !== undefined)
 })

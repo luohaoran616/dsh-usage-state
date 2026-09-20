@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG, type UsageStateConfig } from './shared/config.ts'
 import { toSourceCatalog } from './host/catalog.ts'
+import { withCredentialFallback, type FallbackDeps } from './host/credential-fallback.ts'
 import { describeCredentials, resolveApiKey, type CredentialLookup } from './host/credentials.ts'
 import { providerCredentialRefs, providerEndpointHints } from './host/provider-refs.ts'
 import { createTargetReader, type FetchLike } from './host/read.ts'
@@ -29,6 +30,11 @@ export interface UsageStateDeps {
   /** Overridden in tests; production uses the global fetch. */
   fetch?: FetchLike
   now?: () => number
+  /**
+   * Direct credential fallbacks (environment, credentials file). Tests pass
+   * `false` so a unit test can never pick up the developer's real key.
+   */
+  credentialFallback?: FallbackDeps | false
 }
 
 export const name = 'usage-state'
@@ -59,10 +65,13 @@ function readNamespace(ctx: PluginContextLike, namespace: string): unknown {
  * absent or throws must degrade to "not configured" — never to a crash inside a
  * refresh loop.
  */
-export function createCredentialLookup(ctx: PluginContextLike): CredentialLookup {
+export function createCredentialLookup(
+  ctx: PluginContextLike,
+  fallback: FallbackDeps | false = {},
+): CredentialLookup {
   const provider = ctx.get('credentials') as CredentialsProviderLike | undefined
 
-  return {
+  const platform: CredentialLookup = {
     resolve: async ref => {
       if (provider === undefined) return undefined
       try {
@@ -80,6 +89,8 @@ export function createCredentialLookup(ctx: PluginContextLike): CredentialLookup
       }
     },
   }
+
+  return fallback === false ? platform : withCredentialFallback(platform, fallback)
 }
 
 /**
@@ -120,7 +131,7 @@ export function createUsageState(ctx: PluginContextLike, deps: UsageStateDeps = 
   const now = deps.now ?? ((): number => Date.now())
   const fetchImpl = deps.fetch ?? (globalThis.fetch as unknown as FetchLike)
   const catalog = toSourceCatalog(ALL_SOURCES)
-  const lookup = createCredentialLookup(ctx)
+  const lookup = createCredentialLookup(ctx, deps.credentialFallback ?? {})
 
   let config: UsageStateConfig = DEFAULT_CONFIG
   installUsageStateSettings(ctx, next => {

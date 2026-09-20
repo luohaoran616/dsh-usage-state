@@ -136,6 +136,7 @@ test('the built host bundle wires up and reads a balance through a fake host', a
       urls.push(url)
       return { ok: true, status: 200, json: async () => ({ balance_infos: [{ currency: 'CNY', total_balance: '66.28' }] }) }
     },
+    credentialFallback: false,
   })
 
   const state = (await service.getState(false)) as {
