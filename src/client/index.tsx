@@ -6,6 +6,7 @@ import { SettingsSection } from './SettingsSection.tsx'
 import { StatusLine } from './StatusLine.tsx'
 import { en, LOCALE_NS, zh } from './locales.ts'
 import { remoteService } from './remote.ts'
+import { STATUS_LINE_SLOTS } from './slots.ts'
 import { UsageStateClientStore } from './store.ts'
 import type { ClientContextLike, CredentialsRemoteLike, ModelCatalogLike, RemoteServiceLike, SettingsScopeLike } from './context.ts'
 
@@ -138,27 +139,18 @@ export function apply(ctx: ClientContextLike): void {
 
   const seat = () => ({ usageState: store, settings })
 
-  ctx.slots.inject('conversation.composer.dock', () =>
-    ctx.slots.register(
-      { name: 'conversation.composer.dock', id: 'usage-state', order: 1, locale: LOCALE_NS, inject: seat },
-      (props: never) => createElement(StatusLine, { ...(props as object), variant: 'dock' } as never),
-    ),
-  )
-
-  ctx.slots.inject('conversation.chat.turnTail', () =>
-    ctx.slots.register(
-      {
-        name: 'conversation.chat.turnTail',
-        // Lower priority is consulted first, so any plugin that already claims the
-        // turn tail (produced files, and friends) still wins over this line.
-        priority: 1,
-        locale: LOCALE_NS,
-        select: () => ({}),
-        inject: seat,
-      },
-      (props: never) => createElement(StatusLine, { ...(props as object), variant: 'turnTail' } as never),
-    ),
-  )
+  // Mount points live as data (see slots.ts) so the choice stays testable: the
+  // turnTail chain slot is single-winner and already claimed by the platform's
+  // deliverables plugin and better-sidebar, which is why the line used to vanish
+  // on any turn that produced files.
+  for (const slot of STATUS_LINE_SLOTS) {
+    ctx.slots.inject(slot.name, () =>
+      ctx.slots.register(
+        { name: slot.name, id: slot.id, order: slot.order, locale: slot.locale, inject: seat },
+        (props: never) => createElement(StatusLine, { ...(props as object), variant: slot.variant } as never),
+      ),
+    )
+  }
 
   ctx.slots.inject('settings.section', () =>
     ctx.slots.register(

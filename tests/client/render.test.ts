@@ -143,7 +143,7 @@ test('the status line renders a balance for the session model', () => {
   assert.match(html, /data-tooltip="Source DeepSeek · Mode API balance"/)
 })
 
-test('the turn-tail variant renders quota windows with severity, countdown and bar', () => {
+test('the completed-turn variant renders quota windows with severity, countdown and bar', () => {
   const config = configWith({ zai: { mode: 'coding-plan' } })
   const catalog: SourceCatalog = [...CATALOG]
   const store = storeWith({
@@ -165,14 +165,16 @@ test('the turn-tail variant renders quota windows with severity, countdown and b
   const html = renderToStaticMarkup(
     h(StatusLine, {
       t,
-      variant: 'turnTail',
+      variant: 'actions',
       usageState: store,
       settings: settingsWith(config),
       useProjection: projectionOf({ provider: 'zai', model: 'glm-4.6' }),
     }),
   )
 
-  assert.match(html, /data-usage-state="turnTail"/)
+  assert.match(html, /data-usage-state="actions"/)
+  // The action strip owns the layout, so this variant must not carry dock geometry.
+  assert.doesNotMatch(html, /max-width:var\(--dsh-chat-content-width\)/)
   assert.match(html, /z\.ai \/ GLM/)
   assert.match(html, /5h 42%/)
   assert.match(html, /\(4h\d+m\)/)

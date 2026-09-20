@@ -8,10 +8,11 @@ import type { UsageStateSnapshotSource } from './status-source.ts'
 import { statusParts, SEPARATOR, type StatusPart } from './status-text.ts'
 import { useNow, useSettingsValue, useStoreState } from './hooks.ts'
 import type { ModelSelectionProjectionLike, SettingsSource, Translate } from './context.ts'
+import type { StatusLineVariant } from './slots.ts'
 
 export interface StatusLineProps {
   t: Translate
-  variant: 'dock' | 'turnTail'
+  variant: StatusLineVariant
   usageState: UsageStateSnapshotSource
   settings: SettingsSource<{ value: UsageStateConfig | undefined }>
   useProjection?: <T>(key: string) => T | undefined
@@ -39,10 +40,14 @@ const DOCK_STYLE = {
   padding: '4px calc(var(--dsh-composer-side-clearance) + 16px) 0',
 }
 
-const TURN_TAIL_STYLE = {
+/**
+ * The completed-turn mount point is the platform's action strip: a 28px row that
+ * holds the turn's icons and its own token/time panels. Keep our line a single
+ * compact flex item (no width or centering: the strip owns the layout).
+ */
+const ACTIONS_STYLE = {
   ...BASE_STYLE,
   justifyContent: 'flex-start',
-  padding: '2px 0 0',
   fontSize: '12px',
 }
 
@@ -155,7 +160,7 @@ export function StatusLine(props: StatusLineProps) {
   if (parts.length === 0) return null
 
   return (
-    <div data-usage-state={props.variant} style={props.variant === 'dock' ? DOCK_STYLE : TURN_TAIL_STYLE}>
+    <div data-usage-state={props.variant} style={props.variant === 'dock' ? DOCK_STYLE : ACTIONS_STYLE}>
       {parts.map((part, index) => (
         <Fragment key={index}>
           {index > 0 ? (
