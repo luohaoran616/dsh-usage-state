@@ -1,3 +1,5 @@
+import type { ModelCatalogLike } from './context.ts'
+import type { CatalogModelRow } from './model-rows.ts'
 import type { SourceCatalog } from '../shared/display.ts'
 import type { CredentialDescription, CredentialReport, RemoteResult, UsageStateView } from '../shared/rpc.ts'
 import type { UsageSnapshot } from '../shared/types.ts'
@@ -9,15 +11,32 @@ export interface UsageStateClientState {
   snapshots: Record<string, UsageSnapshot>
   credentials: Record<string, CredentialDescription>
   checkedAt: number | undefined
+  /** Models DSH knows about, flattened for the settings page. */
+  models: CatalogModelRow[]
   /** Why the last reading refresh failed, if it did. */
   error: string | undefined
   /** Why the last credential status lookup failed, if it did. */
   credentialsError: string | undefined
+  /** Why the last model-catalog lookup failed, if it did. */
+  modelsError: string | undefined
 }
 
 export interface UsageStateClientDeps {
   getState(force: boolean): Promise<RemoteResult<UsageStateView>>
   describeCredentials(): Promise<RemoteResult<CredentialReport>>
+  modelCatalog?(): Promise<RemoteResult<ModelCatalogLike>>
+}
+
+/** Flatten the DSH model catalog into the rows the settings page lists. */
+export function flattenCatalog(catalog: ModelCatalogLike | undefined): CatalogModelRow[] {
+  if (catalog === undefined) return []
+  const rows: CatalogModelRow[] = []
+  for (const group of catalog.groups) {
+    for (const model of group.models) {
+      rows.push({ provider: group.id, providerName: group.name, model: model.id, name: model.name })
+    }
+  }
+  return rows
 }
 
 function messageOf(error: unknown): string {
@@ -40,8 +59,10 @@ export class UsageStateClientStore {
     snapshots: {},
     credentials: {},
     checkedAt: undefined,
+    models: [],
     error: undefined,
     credentialsError: undefined,
+    modelsError: undefined,
   }
 
   private inflight: Promise<void> | undefined
@@ -93,6 +114,21 @@ export class UsageStateClientStore {
 
     this.inflight = run
     return run
+  }
+
+  /** Load the model catalog once per settings-page visit. */
+  async refreshModels(): Promise<void> {
+    if (this.deps.modelCatalog === undefined) return
+    try {
+      const result = await this.deps.modelCatalog()
+      if (!result.ok) {
+        this.publish({ modelsError: result.error.message })
+        return
+      }
+      this.publish({ models: flattenCatalog(result.value), modelsError: undefined })
+    } catch (error) {
+      this.publish({ modelsError: messageOf(error) })
+    }
   }
 
   async refreshCredentials(): Promise<void> {

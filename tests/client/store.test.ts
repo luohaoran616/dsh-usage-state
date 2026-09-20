@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { UsageStateClientStore } from '../../src/client/store.ts'
+import { flattenCatalog, UsageStateClientStore } from '../../src/client/store.ts'
+import type { ModelCatalogLike } from '../../src/client/context.ts'
 import type { CredentialReport, RemoteResult, UsageStateView } from '../../src/shared/rpc.ts'
 
 const VIEW: UsageStateView = {
@@ -40,8 +41,16 @@ const REPORT: CredentialReport = {
 interface HarnessOptions {
   view?: RemoteResult<UsageStateView>
   report?: RemoteResult<CredentialReport>
+  catalog?: RemoteResult<ModelCatalogLike>
   throws?: boolean
   gate?: boolean
+}
+
+const MODEL_CATALOG: ModelCatalogLike = {
+  groups: [
+    { id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'deepseek-flash', name: 'DeepSeek Flash' }] },
+    { id: 'zai', name: 'z.ai / GLM', models: [{ id: 'glm-4.6', name: 'GLM-4.6' }] },
+  ],
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -59,6 +68,7 @@ function harness(options: HarnessOptions = {}) {
       return options.view ?? { ok: true, value: VIEW }
     },
     describeCredentials: async () => options.report ?? { ok: true, value: REPORT },
+    modelCatalog: async () => options.catalog ?? { ok: true, value: MODEL_CATALOG },
   })
 
   return { store, calls, release: () => resolveGate?.() }
@@ -73,8 +83,10 @@ test('a fresh store is idle and empty', () => {
     snapshots: {},
     credentials: {},
     checkedAt: undefined,
+    models: [],
     error: undefined,
     credentialsError: undefined,
+    modelsError: undefined,
   })
 })
 
@@ -185,4 +197,38 @@ test('unsubscribing stops notifications', async () => {
   await store.refresh(false)
 
   assert.equal(notifications, 0)
+})
+
+test('flattenCatalog turns provider groups into flat rows and survives a missing catalog', () => {
+  assert.deepEqual(flattenCatalog(MODEL_CATALOG), [
+    { provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek Flash' },
+    { provider: 'zai', providerName: 'z.ai / GLM', model: 'glm-4.6', name: 'GLM-4.6' },
+  ])
+  assert.deepEqual(flattenCatalog(undefined), [])
+})
+
+test('refreshModels fills the settings page model list', async () => {
+  const { store } = harness()
+
+  await store.refreshModels()
+
+  assert.deepEqual(store.getSnapshot().models.map(row => row.model), ['deepseek-flash', 'glm-4.6'])
+  assert.equal(store.getSnapshot().modelsError, undefined)
+})
+
+test('a failing model catalog keeps the previous list and records why', async () => {
+  let fail = false
+  const store = new UsageStateClientStore({
+    getState: async () => ({ ok: true, value: VIEW }),
+    describeCredentials: async () => ({ ok: true, value: REPORT }),
+    modelCatalog: async () =>
+      fail ? { ok: false, error: { message: 'llm unavailable' } } : { ok: true, value: MODEL_CATALOG },
+  })
+
+  await store.refreshModels()
+  fail = true
+  await store.refreshModels()
+
+  assert.equal(store.getSnapshot().models.length, 2)
+  assert.equal(store.getSnapshot().modelsError, 'llm unavailable')
 })
