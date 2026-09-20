@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# NOTE: build output (lib/) is intentionally NOT ignored.
+# `dsh plugin add github:takboo/dsh-usage-state` installs straight from the repo
+# with no build step, so the compiled host/client bundles must be committed.
+
+# Local scratch
+*.log
+.DS_Store
+coverage/
+*.tsbuildinfo
+
+# Editors
+.idea/
+.vscode/
