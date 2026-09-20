@@ -1,0 +1,20 @@
+{
+  "name": "dsh-usage-state",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH plugin: show account balance (API mode) or coding-plan quota usage (5h/7d) for the model currently in use",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/",
+    "test:watch": "node --test --watch tests/",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.2"
+  }
+}
