@@ -7,6 +7,7 @@ import { rowKey } from './model-rows.ts'
 import { useSettingsValue, useStoreState } from './hooks.ts'
 import type { UsageStateClientStore } from './store.ts'
 import type { CredentialsRemoteLike, SettingsScopeLike, Translate } from './context.ts'
+import type { CredentialDescription } from '../shared/rpc.ts'
 import type { ModelMode, UsageStateConfig } from '../shared/config.ts'
 import { normalizeConfig } from '../shared/config.ts'
 
@@ -87,19 +88,24 @@ function DraftInput(props: {
   )
 }
 
-/** One credential panel: status, write and clear, all through the platform's credential RPC. */
+/**
+ * One credential panel: which refs are probed, their status, and the write/clear
+ * affordances. The candidate names are shown on purpose — the user has to know
+ * what to call the environment variable or stored credential.
+ */
 function CredentialPanel(props: {
   t: Translate
   refs: readonly string[]
-  status: { configured: boolean; source?: string; ref?: string } | undefined
-  writable: boolean
+  description: CredentialDescription | undefined
   credentials: CredentialsRemoteLike | undefined
   onChanged: () => void
 }) {
   const { t } = props
   const [draft, setDraft] = useState('')
   const [note, setNote] = useState<string | undefined>(undefined)
-  const configuredRef = props.status?.ref ?? props.refs[0]
+  const candidates = props.description?.candidates ?? []
+  const configuredRef = props.description?.ref ?? candidates.find(candidate => candidate.configured)?.ref ?? props.refs[0]
+  const writable = props.description?.writable !== false
 
   const save = async () => {
     if (props.credentials === undefined || configuredRef === undefined || draft.trim() === '') return
@@ -128,19 +134,24 @@ function CredentialPanel(props: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       <div style={ROW}>
         <span style={MUTED}>{t('credential')}</span>
-        {props.status?.configured === true ? (
-          <Tag tone="success">{t('credentialConfigured', { source: props.status.source ?? configuredRef ?? '' })}</Tag>
-        ) : (
-          <Tag tone="neutral">{t('credentialMissing')}</Tag>
-        )}
-        {props.writable ? null : <span style={MUTED}>{t('credentialLocked')}</span>}
+        {(candidates.length === 0 ? props.refs.map(ref => ({ ref, configured: false })) : candidates).map(candidate => (
+          <span key={candidate.ref} style={ROW}>
+            <code style={{ fontSize: '11px' }}>{candidate.ref}</code>
+            {candidate.configured ? (
+              <Tag tone="success">{t('credentialConfigured', { source: candidate.source ?? '' })}</Tag>
+            ) : (
+              <Tag tone="neutral">{t('credentialMissing')}</Tag>
+            )}
+          </span>
+        ))}
+        {writable ? null : <span style={MUTED}>{t('credentialLocked')}</span>}
       </div>
       <div style={ROW}>
         <Input
           type="password"
           autoComplete="off"
           value={draft}
-          disabled={!props.writable || props.credentials === undefined}
+          disabled={!writable || props.credentials === undefined}
           placeholder={t('credentialPlaceholder')}
           onChange={event => setDraft((event.target as HTMLInputElement).value)}
           style={{ maxWidth: '280px' }}
@@ -148,7 +159,7 @@ function CredentialPanel(props: {
         <Button size="sm" variant="primary" disabled={draft.trim() === ''} onClick={() => void save()}>
           {t('credentialSave')}
         </Button>
-        <Button size="sm" variant="outline" disabled={props.status?.configured !== true} onClick={() => void clear()}>
+        <Button size="sm" variant="outline" disabled={configuredRef === undefined || (props.description?.configured !== true)} onClick={() => void clear()}>
           {t('credentialClear')}
         </Button>
       </div>
@@ -275,7 +286,7 @@ export function SettingsSection(props: SettingsSectionProps) {
             const entry = state.catalog.find(candidate => candidate.id === sourceId)
             const override = config.sources[sourceId] ?? {}
             const mode = configured.find(row => row.sourceId === sourceId && row.mode !== 'hidden')?.mode
-            const status =
+            const description =
               mode === undefined || mode === 'hidden' ? undefined : state.credentials[`${sourceId}:${mode}`]
             const refs = (mode === undefined || mode === 'hidden' ? [] : (entry?.credentialRefs[mode] ?? [])) as string[]
             return (
@@ -314,8 +325,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                 <CredentialPanel
                   t={t}
                   refs={refs}
-                  status={status}
-                  writable={status?.writable !== false}
+                  description={description}
                   credentials={props.credentials}
                   onChanged={() => void props.usageState.refreshCredentials()}
                 />
