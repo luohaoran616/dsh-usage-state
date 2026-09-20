@@ -32,6 +32,13 @@ export interface UsageReading {
   windows: QuotaWindow[]
 }
 
+/** Why a reading is unavailable. The browser turns this into localized copy. */
+export interface SnapshotError {
+  kind: 'config' | 'auth' | 'http' | 'network' | 'parse' | 'unknown'
+  /** Raw provider/network detail, shown only as a tooltip — never as the main label. */
+  detail?: string
+}
+
 /** A reading plus the bookkeeping the status line needs. */
 export interface UsageSnapshot extends UsageReading {
   sourceId: string
@@ -40,6 +47,6 @@ export interface UsageSnapshot extends UsageReading {
   fetchedAt: number
   /** True when this is a previously fetched reading kept after a failed refresh. */
   stale?: boolean
-  /** Human-readable reason for the last failed refresh, if any. */
-  error?: string
+  /** Why the last refresh attempt failed, if it did. */
+  error?: SnapshotError
 }
