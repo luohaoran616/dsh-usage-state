@@ -1,12 +1,13 @@
 import { createElement } from 'react'
 
 import { normalizeConfig, type UsageStateConfig } from '../shared/config.ts'
-import type { CredentialReport, UsageStateView } from '../shared/rpc.ts'
+import type { CredentialReport, RemoteResult, UsageStateView } from '../shared/rpc.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 import { StatusLine } from './StatusLine.tsx'
 import { en, LOCALE_NS, zh } from './locales.ts'
+import { remoteService } from './remote.ts'
 import { UsageStateClientStore } from './store.ts'
-import type { ClientContextLike, ModelCatalogLike, SettingsScopeLike } from './context.ts'
+import type { ClientContextLike, CredentialsRemoteLike, ModelCatalogLike, RemoteServiceLike, SettingsScopeLike } from './context.ts'
 
 // `remote.session` carries the model catalog and `remote.credentials` the key
 // store; both are platform-provided service names that must be declared here or
@@ -61,19 +62,23 @@ export function apply(ctx: ClientContextLike): void {
     decode: section => normalizeConfig(section),
   })
 
+  // `remote.usageState` is contributed by this plugin, so it can never be declared
+  // in `inject` (it appears only after $mount); `ctx.get` is the inject-free read.
+  const usageStateRemote = () => remoteService<RemoteServiceLike>(ctx, 'remote.usageState')
+
   const store = new UsageStateClientStore({
     getState: async force => {
-      const service = ctx.remote.usageState
+      const service = usageStateRemote()
       if (service === undefined) return { ok: false, error: { message: 'remote not mounted' } }
       return service.getState(force)
     },
     describeCredentials: async () => {
-      const service = ctx.remote.usageState
+      const service = usageStateRemote()
       if (service === undefined) return { ok: false, error: { message: 'remote not mounted' } }
       return service.describeCredentials()
     },
     modelCatalog: async () => {
-      const session = ctx.remote.session
+      const session = remoteService<{ modelCatalog(): Promise<RemoteResult<ModelCatalogLike>> }>(ctx, 'remote.session')
       if (session === undefined) return { ok: false, error: { message: 'model catalog unavailable' } }
       return session.modelCatalog()
     },
@@ -164,7 +169,7 @@ export function apply(ctx: ClientContextLike): void {
         order: 200,
         label: () => t('nav'),
         locale: LOCALE_NS,
-        inject: () => ({ ...seat(), credentials: ctx.remote.credentials }),
+        inject: () => ({ ...seat(), credentials: remoteService<CredentialsRemoteLike>(ctx, 'remote.credentials') }),
       },
       SettingsSection as never,
     ),
