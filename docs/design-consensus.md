@@ -47,8 +47,8 @@
 
 两个位置，**共用同一套数据解析规则**：
 
-1. `conversation.chat.turnTail`（链式插槽）：每个**已完成回合**动作行下方一行；不需要时 `select` 返回 `null` 不渲染。
-   ⚠️ **实现后发现该插槽是"单赢家"的 chain**：平台自带的 `dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此，因此**有产出文件/交付物的回合会被它们抢走，我们的行不显示**。修复方向见 `plans/` 下的过渡文档（改挂 `conversation.chat.assistant-actions` + 只在回合末尾渲染）。
+1. ~~`conversation.chat.turnTail`（链式插槽）~~ → **已改挂 `conversation.chat.assistant-actions`**（修订 10）。
+   原设计选 turnTail 是因为它"在回合动作行之前"，实现后才发现它是**单赢家**的 chain：平台自带的 `dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此，任何产出文件/交付物的回合都会被它们先认领，我们的行随之消失。现落在 list 槽 `assistant-actions`（平台只在该回合收尾的助手消息上渲染一次），代价是该条在**非最新回合悬停才显示**。
 2. `conversation.composer.dock`：**自己的 id、`order: 1`，紧贴原生统计行正下方另起一行**。原 `StatsPills`（`id: "stats"`）与其悬浮详情弹窗**原样保留**，不做影子替换、不复刻。
 
 几何对齐（照抄原生行，缺变量时优雅退化）：
@@ -144,5 +144,9 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
    用户观察到 turnTail 与 dock 值同步，"不固定就没有意义"。形态定为固定值 + 较上一回合的变化量；**持久化首选 session log + 投影**（随会话生命周期自动清理、可随会话迁移、平台原生形状），备选是插件自有文件 + LRU/TTL 清理。
    动工前必须先做一次可行性实验：真实的读取侧校验器（`dsh-session-persistence` 的 `validateStoredEvents`）是否会拒绝"未知类型且不带 `ignorable`"的事件——`Session.append()` 在 0.1.5-rc.2 没有参数能设置该标记，若会被拒绝则绝不可写入（append-only，写进去无法撤销）。
    执行计划见 `plans/` 下的过渡文档（实施完成后删除，故此处不写死链接）。
+10. **回合行落点：turnTail → assistant-actions**（`plans/turn-tail-chain-conflict.md` 实施后删除）
+    真机发现"有 `Produced …` 的回合没有用量行"：`conversation.chat.turnTail` 是 chain，单赢家，被平台 deliverables 与 better-sidebar 占用。改为 list 槽 `conversation.chat.assistant-actions`，无抢占；并把挂载点抽成 `src/client/slots.ts` 数据 + 测试守卫（防止再把 turnTail 加回来）。
+    **代价（需知悉）**：动作条由平台控制显隐——最新回合常显，**历史回合 `opacity:0` + 悬停才显示**（平台自己的每回合 token/耗时面板同处）。若要历史回合也常显，必须注册会话事件定义 + 自有 transcript 节点，即修订 8 的 pinning 工作。
+
 9. **`.d.ts` 与兼容性声明**（本文档校正）
    原文写"产出 `.d.ts`"与"声明 `dsh >= 0.1.5-rc.2`"，实现都不成立：`dts: false`，且平台 manifest schema 没有 `compatibility` 字段。已按事实改写。

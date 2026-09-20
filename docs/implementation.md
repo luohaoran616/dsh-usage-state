@@ -73,7 +73,7 @@
 | 密钥写入走平台凭据库 | `client/SettingsSection`（`remote.credentials.set/unset`）+ `writable` 透传 | `render` + `credentials` | 结构 + 单测（本机未真正写过密钥） |
 | 设置命名空间 `usage-state` + 自定义页 | `host/settings.ts` + `client/SettingsSection.tsx` | `settings`(4) / `render`(12) | 真机（页面可用、四态与排序即时生效） |
 | RPC 通道（Typert） | `host/typert.ts` + `host/service.ts` + `client/index.tsx`（`$mount`） | `typert`(8) / `service`(5) / `entry`(10) / `bundle`(6) | 真机 + **平台 `validateTypertManifest`** |
-| 状态行挂两处（dock 兄弟行 + turnTail） | `client/index.tsx` 插槽注册 + `client/StatusLine.tsx` | `render`（SSR） | 真机确认可见，但 **turnTail 存在 chain 冲突缺陷**（见 §6 第 0 条） |
+| 状态行挂两处（dock 兄弟行 + 回合动作条） | `client/slots.ts`（挂载点即数据）+ `client/index.tsx` + `client/StatusLine.tsx` | `slots`(4) / `render`（SSR） | 真机确认可见；回合行曾因 chain 冲突消失，已改挂 `assistant-actions` 修复（见 §9 第 11 条） |
 | 刷新：回合结束 +2s、空闲 5min、最小 60s | `host/refresh.ts`（时钟注入）+ `src/index.ts` | `refresh`(12)（假时钟）/ `entry` | 单测精确覆盖；真机间接（数值随时间变化） |
 | 失败保留旧值 + 陈旧时间 + ⚠ | `refresh.fail` + `display.describeStatus` + `status-text` | `refresh` / `display`(12) / `status-text`(6) / `render` | 真机（早期 `⚠ … Unavailable` 截图）+ 单测 |
 | 悬浮提示 (A) | `status-text` 生成 tooltip + `StatusLine` 用平台 `Tooltip` | `status-text` / `render`（断言 `data-tooltip`） | 真机（用户确认） |
@@ -114,12 +114,6 @@
 2. **Sub2API**——本机没有自建实例；`/v1/usage` 是未文档化接口且字段漂移过，实现按容错处理。
 3. **阈值变色的视觉**——真机读数 12%/59% 未触及阈值；把设置里黄色阈值临时改成 10 即可看到。
 4. **手写密钥写入**——设置页可写，但本机凭据来自环境变量/凭据文件，未实际走一遍写入→生效。
-
-**已知缺陷**（修复方案见 `plans/` 下的过渡文档）：
-
-0. **回合行在有产出/交付物的回合不显示**（真机发现）。
-   `conversation.chat.turnTail` 是 **chain** 插槽（"第一个接受 owner 的 selector 渲染"，每条回合只有一个赢家），而平台自带的 `dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此：任何产出了文件/交付物的回合都会被它们先认领，我们的条目不会被询问 → 该回合没有用量行；没有产出的回合它们返回 `null`，我们才渲染（因此表现为"时有时无"）。
-   插槽内无解（单一赢家、`select` 必须是纯函数、`overlay` 仅 composer 链使用、提高优先级会抢掉别人的产出文件行）；可行方向是改挂 `conversation.chat.assistant-actions`（list 槽、无竞争），并加"只在回合末尾渲染"的过滤以避免多 step 重复。
 
 **已识别但尚未实现**（讨论见 `design-consensus.md` §13）：
 
@@ -171,3 +165,4 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
 8. **浏览器包不能在 Node 里 import**（CSS 模块 + 未声明的传递依赖）→ 渲染测试用模块钩子替换 primitives 桩件。
 9. **z.ai 用 HTTP 200 + `{success:false,code:1000,msg}` 表达鉴权失败**；区域站点互不认对方的 key。
 10. **外部插件事件在会话日志里是有设计支持的**（`ignorable: true` 是兼容机制），但 0.1.5-rc.2 的 `Session.append()` 没有参数能设置该标记——用前必须实验验证。
+11. **chain 插槽只有一个赢家，且回合动作条在历史回合是悬停显示**：`conversation.chat.turnTail` 是 chain（`dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此，`priority: -1`），任何产出文件的回合都会把它们之一选为赢家，其他条目**不会被询问**；`select` 又被契约要求是纯函数，无法感知"别人要认领"而让路。改用 list 槽 `conversation.chat.assistant-actions` 可避免抢占，但它由平台渲染在**回合动作条**内（ui-chat 只在 `closing.finalNode.messageId` 上渲染一次/回合），而该条在**非最新回合是 `opacity: 0` + `:hover` 才显示**（平台自己的每回合 token/耗时面板也在那里）。要"每个历史回合都常显"，只能用会话事件定义 + 自有 transcript 节点（见 `plans/` 的 pinning 计划）。

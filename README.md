@@ -58,7 +58,8 @@ dsh plugin --profile web remove dsh-usage-state
 
 ## 显示与交互
 
-**位置**：`conversation.composer.dock`（统计行正下方，几何与原生行对齐）与 `conversation.chat.turnTail`（每个已完成回合下方）。
+**位置**：`conversation.composer.dock`（统计行正下方，几何与原生行对齐）与 `conversation.chat.assistant-actions`（回合动作条内，每个已完成回合一次）。
+注意动作条由平台控制显隐：**最新回合常显，历史回合悬停才显示**（平台自己的每回合 token/耗时面板也在同一位置）。
 
 **元素**：供应商标签 · 余额金额 + 币种 · 5h / 7d 已用百分比 · 重置倒计时 · 迷你进度条 · 阈值变色（默认 ≥80% 黄、≥95% 红，可在设置里改）。
 
@@ -95,7 +96,7 @@ dsh plugin --profile web remove dsh-usage-state
 ## 已知限制
 
 - **Kimi、Sub2API 未经真机验证**（本机无凭据），代码与单测已就绪；Sub2API 的 `/v1/usage` 属未文档化接口，已按易错接口做容错。
-- **回合下方显示的是"当前值"而非"该回合结束时的值"**——两处读数同源。要固定成"当时的值 + 较上一回合的变化"需要额外的持久化（方案已定，见 [`docs/implementation.md`](docs/implementation.md) §6）。
+- **回合下方显示的是"当前值"而非"该回合结束时的值"**——两处读数同源；且历史回合需要悬停查看（动作条的平台行为）。要固定成"当时的值 + 较上一回合的变化"并让历史回合常显，需要会话事件 + 自有节点（方案见 `plans/` 下的过渡文档）。
 - **点击状态行不会打开设置**（客户端没有公开的"打开设置面板"服务）；细节通过悬浮提示呈现。
 - 完整清单见 [`docs/implementation.md`](docs/implementation.md) §6。
 

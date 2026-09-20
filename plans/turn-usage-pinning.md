@@ -105,7 +105,14 @@ catch (error) { console.log('reader: REFUSES →', error.message) }
 
 ### 5.3 客户端
 
-- `turnTail` 用 `useProjection('usageTurn')` 取本回合的固定值与 Δ；**没有记录就不显示**（老回合、刷新失败的回合、未采样回合）——不显示比显示"当前值"诚实。
+> 落点已确定：回合行现挂在 `conversation.chat.assistant-actions`（list 槽，无抢占，
+> 见 `docs/implementation.md` §9 第 11 条）。但该条**在非最新回合是悬停显示**。
+> 若要让历史回合也常显，需要 **注册会话事件定义并发布自有 transcript 节点**
+> （`ctx.uiConversation.events.register` 的定义基于会话事件折叠，因此与本节的事件路线天然合流）。
+> 两条路的取舍在实施时确定：只做固定值/Δ → 沿用 `assistant-actions`；
+> 同时要"历史回合常显" → 一并做事件定义 + 节点渲染器。
+
+- 回合行用 `useProjection('usageTurn')`（或事件节点）取本回合的固定值与 Δ；**没有记录就不显示**（老回合、刷新失败的回合、未采样回合）——不显示比显示"当前值"诚实。
 - `dock` 行不改（仍是实时值）。
 - Δ 文案必须写"较上一回合"（见 §5.4），中英词典各一条。
 
