@@ -13,8 +13,17 @@
     "test:watch": "node --test --watch tests/",
     "typecheck": "tsc --noEmit"
   },
+  "exports": {
+    "./typert": {
+      "default": "./lib/typert.js"
+    },
+    "./package.json": "./package.json"
+  },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "zod": "4.5.1"
   }
 }
