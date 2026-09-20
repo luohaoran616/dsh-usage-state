@@ -4,6 +4,15 @@
 
 A minimal DSH plugin that shows **account balance** (API mode) or **coding-plan quota usage** (5h / 7d windows) for the model you are currently using.
 
+## 安装
+
+```bash
+dsh plugin --profile web add github:takboo/dsh-usage-state
+# 然后重启 DSH（bundle patch 只在启动时读取）
+```
+
+开发时可以直接装本地目录：`dsh plugin --profile web add /path/to/dsh-usage-state`。
+
 ## 这个插件做什么
 
 - 自动读取 DSH 里已配置的模型，在设置页按你的顺序列出。

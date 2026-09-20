@@ -64,6 +64,7 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
+    "LICENSE",
     "docs/adapters.md"
   ],
   "peerDependencies": {
