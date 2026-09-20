@@ -4,6 +4,24 @@ import type { UsageMode } from './types.ts'
 export type ModelMode = UsageMode | 'hidden'
 
 /**
+ * Per-provider mode. `auto` (the default) means "use the source this provider
+ * suggests, in that source's primary mode" — which is what lets a provider whose
+ * key DSH already holds work without any configuration at all.
+ */
+export type ProviderMode = UsageMode | 'hidden' | 'auto'
+
+/** Configuration for one DSH provider; only deviations from `auto` are stored. */
+export interface ProviderConfigEntry {
+  mode: ProviderMode
+  /** Override the suggested data source. */
+  sourceId?: string
+  /** Endpoint override for this provider (mirrors, self-hosted instances). */
+  baseUrl?: string
+  /** Credential ref override for this provider. */
+  apiKeyRef?: string
+}
+
+/**
  * One configured model. The data source is chosen explicitly because DSH provider
  * ids are user-defined (`llm-pi-ai.providers` keys are free-form), so the plugin
  * only *suggests* a source and the user confirms it.
@@ -43,8 +61,17 @@ export interface DisplayConfig {
 
 /** The plugin's whole configuration, persisted in the DSH settings namespace. */
 export interface UsageStateConfig {
-  /** Display order is the array order (the settings page reorders it). */
+  /**
+   * Legacy per-model entries. Superseded by {@link providers} (readings are
+   * account-level, so models are not the right unit) and kept only so an older
+   * document keeps working; `normalizeConfig` migrates their choices.
+   */
   models: ModelConfigEntry[]
+  /** Display order of providers; providers missing here follow in catalog order. */
+  order: string[]
+  /** Per-provider overrides, keyed by DSH provider id. */
+  providers: Record<string, ProviderConfigEntry>
+  /** Legacy per-source overrides; superseded by {@link ProviderConfigEntry.baseUrl}. */
   sources: Record<string, SourceConfig>
   refresh: RefreshConfig
   display: DisplayConfig
@@ -52,6 +79,8 @@ export interface UsageStateConfig {
 
 export const DEFAULT_CONFIG: UsageStateConfig = {
   models: [],
+  order: [],
+  providers: {},
   sources: {},
   refresh: {
     intervalMinutes: 5,
@@ -66,6 +95,7 @@ export const DEFAULT_CONFIG: UsageStateConfig = {
 }
 
 const MODES: readonly ModelMode[] = ['api', 'coding-plan', 'hidden']
+const PROVIDER_MODES: readonly ProviderMode[] = ['api', 'coding-plan', 'hidden', 'auto']
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -153,16 +183,75 @@ function normalizeDisplay(value: unknown): DisplayConfig {
   return { thresholdWarnPercent, thresholdCriticalPercent, progressBar }
 }
 
+function normalizeProviders(value: unknown): Record<string, ProviderConfigEntry> {
+  const root = asRecord(value)
+  if (root === undefined) return {}
+
+  const providers: Record<string, ProviderConfigEntry> = {}
+  for (const [id, raw] of Object.entries(root)) {
+    const entry = asRecord(raw)
+    if (entry === undefined) continue
+
+    const rawMode = cleanString(entry.mode)
+    const mode: ProviderMode = PROVIDER_MODES.includes(rawMode as ProviderMode)
+      ? (rawMode as ProviderMode)
+      : 'auto'
+
+    const normalized: ProviderConfigEntry = { mode }
+    const sourceId = cleanString(entry.sourceId)
+    if (sourceId !== '') normalized.sourceId = sourceId
+    const baseUrl = cleanString(entry.baseUrl)
+    if (baseUrl !== '') normalized.baseUrl = baseUrl
+    const apiKeyRef = cleanString(entry.apiKeyRef)
+    if (apiKeyRef !== '') normalized.apiKeyRef = apiKeyRef
+
+    providers[id] = normalized
+  }
+  return providers
+}
+
+/** Keep the stored order sane and append providers it does not mention. */
+function normalizeOrder(value: unknown, providers: Record<string, ProviderConfigEntry>): string[] {
+  const order: string[] = []
+  if (Array.isArray(value)) {
+    for (const raw of value) {
+      const id = cleanString(raw)
+      if (id === '' || order.includes(id)) continue
+      order.push(id)
+    }
+  }
+  for (const id of Object.keys(providers)) {
+    if (!order.includes(id)) order.push(id)
+  }
+  return order
+}
+
 /**
  * Turn whatever the hand-editable settings document contains into a usable
  * config. Deliberately never throws: the settings provider calls the schema
  * synchronously at registration time, and a dirty section must not block the
  * plugin from loading. Malformed pieces fall back to defaults instead.
+ *
+ * Legacy per-model entries are migrated into provider entries so an existing
+ * document keeps the choices its owner already made.
  */
 export function normalizeConfig(raw: unknown): UsageStateConfig {
   const root = asRecord(raw) ?? {}
+  const models = normalizeModels(root.models)
+  const providers = normalizeProviders(root.providers)
+
+  for (const entry of models) {
+    if (providers[entry.provider] !== undefined) continue
+    providers[entry.provider] = {
+      mode: entry.mode,
+      ...(entry.sourceId === null ? {} : { sourceId: entry.sourceId }),
+    }
+  }
+
   return {
-    models: normalizeModels(root.models),
+    models,
+    order: normalizeOrder(root.order, providers),
+    providers,
     sources: normalizeSources(root.sources),
     refresh: normalizeRefresh(root.refresh),
     display: normalizeDisplay(root.display),

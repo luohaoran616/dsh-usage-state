@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, type UsageStateConfig } from './shared/config.ts'
 import { toSourceCatalog } from './host/catalog.ts'
 import { describeCredentials, resolveApiKey, type CredentialLookup } from './host/credentials.ts'
-import { providerCredentialRefs } from './host/provider-refs.ts'
+import { providerCredentialRefs, providerEndpointHints } from './host/provider-refs.ts'
 import { createTargetReader, type FetchLike } from './host/read.ts'
 import { UsageStateStore } from './host/refresh.ts'
 import { UsageStateService, USAGE_STATE_RPC_NAMESPACE, USAGE_STATE_SERVICE } from './host/service.ts'
@@ -34,6 +34,10 @@ export interface UsageStateDeps {
 export const name = 'usage-state'
 /** `timer` is what provides `ctx.timeout` / `ctx.interval`. */
 export const inject = ['timer']
+
+interface LlmRuntimeLike {
+  listProviders?(): ReadonlyArray<{ id?: unknown }>
+}
 
 interface CredentialsProviderLike {
   resolve(ref: string): Promise<{ value: string; source: string } | undefined>
@@ -123,7 +127,28 @@ export function createUsageState(ctx: PluginContextLike, deps: UsageStateDeps = 
     config = next
   })
 
-  const targets = (): UsageTarget[] => resolveTargets(config, ALL_SOURCES)
+  /**
+   * The plugin's own configuration says nothing about which providers exist, so
+   * ask the host's LLM runtime. This is what makes zero configuration work: a
+   * provider nobody configured still resolves to its suggested source.
+   */
+  const providerFacts = (): { ids: string[]; hints: Record<string, string> } => {
+    const llm = ctx.get('llm') as LlmRuntimeLike | undefined
+    const ids: string[] = []
+    try {
+      for (const provider of llm?.listProviders?.() ?? []) {
+        if (typeof provider?.id === 'string' && provider.id !== '') ids.push(provider.id)
+      }
+    } catch {
+      // The LLM runtime may not be ready on the first ticks; the next one retries.
+    }
+    return { ids, hints: providerEndpointHints(readNamespace(ctx, 'llm-pi-ai')) }
+  }
+
+  const targets = (): UsageTarget[] => {
+    const { ids, hints } = providerFacts()
+    return resolveTargets(config, { providers: ids, endpointHints: hints })
+  }
   const optionsFor = (target: UsageTarget) => {
     const overrideRef = config.sources[target.sourceId]?.apiKeyRef
     return {

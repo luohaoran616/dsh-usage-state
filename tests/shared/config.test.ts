@@ -3,6 +3,11 @@ import assert from 'node:assert/strict'
 
 import { DEFAULT_CONFIG, normalizeConfig } from '../../src/shared/config.ts'
 
+test('the default config carries no provider overrides and no stored order', () => {
+  assert.deepEqual(DEFAULT_CONFIG.providers, {})
+  assert.deepEqual(DEFAULT_CONFIG.order, [])
+})
+
 test('normalizeConfig returns the defaults for anything that is not a section object', () => {
   for (const raw of [undefined, null, 'nope', 42, [], true]) {
     assert.deepEqual(normalizeConfig(raw), DEFAULT_CONFIG, `expected defaults for ${JSON.stringify(raw)}`)
@@ -127,6 +132,8 @@ test('normalizeConfig never throws, whatever the document contains', () => {
 
   assert.deepEqual(config, {
     models: [],
+    order: [],
+    providers: {},
     sources: {},
     refresh: DEFAULT_CONFIG.refresh,
     display: DEFAULT_CONFIG.display,

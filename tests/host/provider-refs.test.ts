@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { providerCredentialRefs } from '../../src/host/provider-refs.ts'
+import { providerCredentialRefs, providerEndpointHints } from '../../src/host/provider-refs.ts'
 
 const PI_AI = {
   providers: {
@@ -71,4 +71,15 @@ test('a caller-supplied resolver replaces the built-in suggestion', () => {
   })
 
   assert.deepEqual(refs, [])
+})
+
+test('providerEndpointHints reports each configured endpoint, trimmed', () => {
+  assert.deepEqual(providerEndpointHints(PI_AI), {
+    orcarouter: 'https://api.orcarouter.ai/v1',
+    'glm-coding': 'https://open.bigmodel.cn/api/paas/v4',
+    'kimi-code': 'https://api.kimi.com/coding/v1',
+    anonymous: 'https://api.deepseek.com/v1',
+  })
+  assert.deepEqual(providerEndpointHints({ providers: { a: { baseURL: '  ' }, b: 'x' } }), {})
+  assert.deepEqual(providerEndpointHints(undefined), {})
 })
