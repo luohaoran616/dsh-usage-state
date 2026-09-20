@@ -92,3 +92,63 @@ test('every declared export and manifest path exists once built', t => {
   assert.ok(existsSync(new URL(`../../${PACKAGE.dsh?.bundle?.patch ?? ''}`, import.meta.url)))
   assert.equal(PACKAGE.dsh?.client?.platform, 'web')
 })
+
+/**
+ * The shipped host bundle, driven by a fake cordis context. This catches
+ * packaging mistakes (a missing dependency, an accidental bundling of platform
+ * code) that unit tests over `src/` cannot see.
+ */
+test('the built host bundle wires up and reads a balance through a fake host', async t => {
+  if (!built()) return t.skip('run `npm run build` first')
+
+  const mod = (await import(HOST.href)) as {
+    createUsageState: (ctx: unknown, deps: unknown) => { getState(force: boolean): Promise<unknown> }
+  }
+
+  const provided = new Map<string, unknown>()
+  const scope = {
+    get: () => ({
+      models: [{ provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' }],
+    }),
+    watch: () => () => undefined,
+  }
+  const ctx = {
+    inject: (names: readonly string[], callback: (ctx: unknown) => void) => {
+      if (names.includes('settings')) callback({ settings: { register: () => scope } })
+    },
+    get: (name: string) =>
+      name === 'credentials'
+        ? {
+            resolve: async (ref: string) => (ref === 'DEEPSEEK_API_KEY' ? { value: 'sk-test', source: 'env' } : undefined),
+            describe: async () => ({ configured: true, writable: true }),
+          }
+        : undefined,
+    on: () => () => undefined,
+    effect: (callback: () => void) => callback(),
+    provide: (key: string, value: unknown) => provided.set(key, value),
+    timeout: () => () => undefined,
+    interval: () => () => undefined,
+  }
+
+  const urls: string[] = []
+  const service = mod.createUsageState(ctx, {
+    fetch: async (url: string) => {
+      urls.push(url)
+      return { ok: true, status: 200, json: async () => ({ balance_infos: [{ currency: 'CNY', total_balance: '66.28' }] }) }
+    },
+  })
+
+  const state = (await service.getState(false)) as {
+    snapshots: Record<string, { balances: Array<{ amount: number; currency: string }> }>
+    sources: unknown[]
+  }
+
+  assert.deepEqual(urls, ['https://api.deepseek.com/user/balance'])
+  assert.deepEqual(state.snapshots['deepseek:api']?.balances, [{ amount: 66.28, currency: 'CNY' }])
+  assert.equal(state.sources.length, 4)
+  assert.equal(provided.get('usageState'), service)
+  assert.deepEqual(
+    (service as unknown as { typertRemote: unknown }).typertRemote,
+    { service: 'usageState', serviceKey: 'usageState', namespace: 'usageState' },
+  )
+})
