@@ -38,3 +38,7 @@ export function Tag({ tone = 'neutral', children }) {
 export function StateDot({ state }) {
   return h('span', { 'data-state': state })
 }
+
+export function Tooltip({ label, side, delayMs, disabled, maxWidth, children }) {
+  return h('span', { 'data-tooltip': typeof label === 'function' ? label() : label, 'data-side': side ?? 'top' }, children)
+}

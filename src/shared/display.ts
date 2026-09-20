@@ -34,7 +34,7 @@ export type Severity = 'normal' | 'warn' | 'critical'
 
 export type StatusSegment =
   | { kind: 'label'; text: string; stale?: boolean; /** epoch ms of the kept reading, when stale. */ staleSince?: number }
-  | { kind: 'balance'; amount: string; currency: string }
+  | { kind: 'balance'; amount: string; currency: string; granted?: number; toppedUp?: number }
   | { kind: 'window'; windowId: string; percent: string; severity: Severity; resetsAt?: number; bar?: string }
   | {
       kind: 'state'
@@ -150,7 +150,13 @@ export function describeStatus(input: StatusInput): StatusSegment[] {
 
   const segments: StatusSegment[] = [label]
   for (const balance of snapshot.balances) {
-    segments.push({ kind: 'balance', amount: formatBalance(balance), currency: balance.currency })
+    segments.push({
+      kind: 'balance',
+      amount: formatBalance(balance),
+      currency: balance.currency,
+      ...(balance.granted === undefined ? {} : { granted: balance.granted }),
+      ...(balance.toppedUp === undefined ? {} : { toppedUp: balance.toppedUp }),
+    })
   }
   for (const window of snapshot.windows) {
     const segment: StatusSegment = {

@@ -1,4 +1,4 @@
-import { formatAge, formatCountdown, type StatusSegment } from '../shared/display.ts'
+import { formatAge, formatBalance, formatCountdown, type StatusSegment } from '../shared/display.ts'
 import type { UsageStateKey } from './locales.ts'
 
 /** The subset of the platform translate function this module needs. */
@@ -17,16 +17,26 @@ export function windowLabel(id: string, t: Translate): string {
 }
 
 export type StatusPart =
-  | { kind: 'label'; text: string; stale: boolean }
-  | { kind: 'age'; text: string }
-  | { kind: 'balance'; text: string; currency: string }
-  | { kind: 'window'; id: string; text: string; percent: string; severity: 'normal' | 'warn' | 'critical'; bar?: string; countdown?: string }
+  | { kind: 'label'; text: string; stale: boolean; tooltip?: string }
+  | { kind: 'age'; text: string; tooltip?: string }
+  | { kind: 'balance'; text: string; currency: string; tooltip?: string }
+  | {
+      kind: 'window'
+      id: string
+      text: string
+      percent: string
+      severity: 'normal' | 'warn' | 'critical'
+      bar?: string
+      countdown?: string
+      tooltip?: string
+    }
   | {
       kind: 'state'
       state: 'loading' | 'unconfigured' | 'unsupported' | 'needs-endpoint' | 'error'
       text: string
       errorKind?: string
       errorDetail?: string
+      tooltip?: string
     }
 
 /** Visual separator between the parts of one status line. */
@@ -37,24 +47,85 @@ export const SEPARATOR = '·'
  * that reads as prose comes from the dictionary; numbers and window ids pass
  * through untouched.
  */
-export function statusParts(input: { segments: readonly StatusSegment[]; t: Translate; now: number }): StatusPart[] {
-  const { segments, t, now } = input
+export interface StatusPartsInput {
+  segments: readonly StatusSegment[]
+  t: Translate
+  now: number
+  /** Data-source display name, for the tooltip. */
+  sourceLabel?: string
+  /** Already-localized mode name, for the tooltip. */
+  modeLabel?: string
+}
+
+/** Join the pieces of a tooltip, dropping the ones that do not apply. */
+function tooltipOf(pieces: readonly (string | undefined)[]): string | undefined {
+  const present = pieces.filter((piece): piece is string => piece !== undefined && piece !== '')
+  return present.length === 0 ? undefined : present.join(' · ')
+}
+
+function localTime(epochMs: number): string {
+  return new Date(epochMs).toLocaleTimeString()
+}
+
+/**
+ * Turn the host's language-neutral segments into render-ready parts.
+ *
+ * Every part also carries a tooltip: the line has room for one number per window,
+ * while the useful context (which source and mode this reading belongs to, when it
+ * was last refreshed, when a window resets, how a balance splits) does not fit.
+ */
+export function statusParts(input: StatusPartsInput): StatusPart[] {
+  const { segments, t, now, sourceLabel, modeLabel } = input
+  const context = tooltipOf([
+    sourceLabel === undefined ? undefined : t('tipSource', { source: sourceLabel }),
+    modeLabel === undefined ? undefined : t('tipMode', { mode: modeLabel }),
+  ])
   const parts: StatusPart[] = []
 
   for (const segment of segments) {
     switch (segment.kind) {
       case 'label': {
-        parts.push({ kind: 'label', text: segment.text, stale: segment.stale === true })
+        const staleHint = segment.stale === true ? t('staleHint') : undefined
+        const refreshHint =
+          segment.staleSince === undefined
+            ? undefined
+            : t('tipUpdated', { age: formatAge(segment.staleSince, now) })
+        parts.push({
+          kind: 'label',
+          text: segment.text,
+          stale: segment.stale === true,
+          ...(tooltipOf([staleHint, refreshHint, context]) === undefined
+            ? {}
+            : { tooltip: tooltipOf([staleHint, refreshHint, context]) as string }),
+        })
         if (segment.staleSince !== undefined) {
-          parts.push({ kind: 'age', text: t('staleAgo', { age: formatAge(segment.staleSince, now) }) })
+          parts.push({
+            kind: 'age',
+            text: t('staleAgo', { age: formatAge(segment.staleSince, now) }),
+            ...(staleHint === undefined ? {} : { tooltip: staleHint }),
+          })
         }
         break
       }
-      case 'balance':
-        parts.push({ kind: 'balance', text: segment.amount, currency: segment.currency })
+      case 'balance': {
+        const split =
+          segment.granted === undefined && segment.toppedUp === undefined
+            ? undefined
+            : t('tipBalanceSplit', {
+                granted: segment.granted === undefined ? '—' : String(segment.granted),
+                toppedUp: segment.toppedUp === undefined ? '—' : String(segment.toppedUp),
+              })
+        parts.push({
+          kind: 'balance',
+          text: segment.amount,
+          currency: segment.currency,
+          ...(tooltipOf([split, context]) === undefined ? {} : { tooltip: tooltipOf([split, context]) as string }),
+        })
         break
+      }
       case 'window': {
         const countdown = formatCountdown(segment.resetsAt, now)
+        const resetHint = segment.resetsAt === undefined ? undefined : t('tipResets', { time: localTime(segment.resetsAt) })
         parts.push({
           kind: 'window',
           id: segment.windowId,
@@ -63,18 +134,27 @@ export function statusParts(input: { segments: readonly StatusSegment[]; t: Tran
           severity: segment.severity,
           ...(countdown === undefined ? {} : { countdown }),
           ...(segment.bar === undefined ? {} : { bar: segment.bar }),
+          ...(tooltipOf([resetHint, context]) === undefined ? {} : { tooltip: tooltipOf([resetHint, context]) as string }),
         })
         break
       }
-      case 'state':
+      case 'state': {
+        const reason =
+          segment.errorKind === undefined
+            ? undefined
+            : segment.errorDetail === undefined
+              ? t(`error.${segment.errorKind}`)
+              : `${t(`error.${segment.errorKind}`)}: ${segment.errorDetail}`
         parts.push({
           kind: 'state',
           state: segment.state,
           text: t(`state.${segment.state}` as UsageStateKey),
           ...(segment.errorKind === undefined ? {} : { errorKind: segment.errorKind }),
           ...(segment.errorDetail === undefined ? {} : { errorDetail: segment.errorDetail }),
+          ...(tooltipOf([reason, context]) === undefined ? {} : { tooltip: tooltipOf([reason, context]) as string }),
         })
         break
+      }
     }
   }
 

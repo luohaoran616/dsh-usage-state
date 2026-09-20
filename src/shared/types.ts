@@ -14,6 +14,9 @@ export interface BalanceAmount {
   amount: number
   /** Currency code as reported by the provider, e.g. `CNY` / `USD`. */
   currency: string
+  /** Provider-reported split, when the endpoint exposes one (DeepSeek does). */
+  granted?: number
+  toppedUp?: number
 }
 
 /** One rolling quota window (5h, 7d, ...) of a coding plan. */

@@ -139,6 +139,8 @@ test('the status line renders a balance for the session model', () => {
   assert.match(html, /DeepSeek/)
   assert.match(html, /¥66\.28/)
   assert.match(html, /max-width:var\(--dsh-chat-content-width\)/)
+  // Hovering the line explains where the number comes from.
+  assert.match(html, /data-tooltip="Source DeepSeek · Mode API balance"/)
 })
 
 test('the turn-tail variant renders quota windows with severity, countdown and bar', () => {
@@ -175,6 +177,7 @@ test('the turn-tail variant renders quota windows with severity, countdown and b
   assert.match(html, /5h 42%/)
   assert.match(html, /\(4h\d+m\)/)
   assert.match(html, /7d 96%/)
+  assert.match(html, /data-tooltip="[^"]*Resets at [^"]*Source z\.ai \/ GLM · Mode Coding plan"/)
   // 96% crosses the critical threshold, so it must use the error colour.
   assert.match(html, /--dsw-alias-state-error-primary/)
   assert.match(html, /--dsw-alias-state-warn-primary|--dsw-alias-label-secondary/)

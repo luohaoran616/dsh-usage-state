@@ -38,7 +38,7 @@ test('deepseek honours a base URL override, including a /v1 suffix', () => {
 test('deepseek parses the official balance payload', () => {
   const reading = deepseek.parse(officialPayload, 'api')
 
-  assert.deepEqual(reading.balances, [{ amount: 66.28, currency: 'CNY' }])
+  assert.deepEqual(reading.balances, [{ amount: 66.28, currency: 'CNY', granted: 0, toppedUp: 66.28 }])
   assert.deepEqual(reading.windows, [])
 })
 
@@ -67,6 +67,15 @@ test('deepseek prefers CNY when every currency is zero', () => {
   )
 
   assert.deepEqual(reading.balances, [{ amount: 0, currency: 'CNY' }])
+})
+
+test('deepseek keeps the granted / topped-up split for the tooltip', () => {
+  const reading = deepseek.parse(
+    { balance_infos: [{ currency: 'CNY', total_balance: '66.28', granted_balance: '10.00', topped_up_balance: '56.28' }] },
+    'api',
+  )
+
+  assert.deepEqual(reading.balances, [{ amount: 66.28, currency: 'CNY', granted: 10, toppedUp: 56.28 }])
 })
 
 test('deepseek falls back to the first entry when CNY is absent', () => {

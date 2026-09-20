@@ -31,7 +31,12 @@ export function strictCodec(name: string, schema: z.ZodType): StrictCodec {
 
 const usageModeSchema = z.enum(['api', 'coding-plan'])
 
-const balanceSchema = z.object({ amount: z.number(), currency: z.string() })
+const balanceSchema = z.object({
+  amount: z.number(),
+  currency: z.string(),
+  granted: z.number().optional(),
+  toppedUp: z.number().optional(),
+})
 
 const quotaWindowSchema = z.object({
   id: z.string(),

@@ -8,6 +8,8 @@ const BALANCE_PATH = '/user/balance'
 interface PickedBalance {
   amount: number
   currency: string
+  granted?: number
+  toppedUp?: number
 }
 
 /**
@@ -24,9 +26,13 @@ function pickBalanceInfo(infos: unknown): PickedBalance | undefined {
   for (const raw of infos) {
     if (raw === null || typeof raw !== 'object') continue
     const entry = raw as Record<string, unknown>
+    const granted = toFiniteNumber(entry.granted_balance)
+    const toppedUp = toFiniteNumber(entry.topped_up_balance)
     entries.push({
       amount: toFiniteNumber(entry.total_balance) ?? 0,
       currency: typeof entry.currency === 'string' ? entry.currency : '',
+      ...(granted === undefined ? {} : { granted }),
+      ...(toppedUp === undefined ? {} : { toppedUp }),
     })
   }
   if (entries.length === 0) return undefined
@@ -63,6 +69,16 @@ export const deepseek: UsageSource = {
     if (picked === undefined) {
       throw new SourceError('parse', 'DeepSeek balance response contains no usable balance_infos')
     }
-    return { balances: [{ amount: picked.amount, currency: picked.currency }], windows: [] }
+    return {
+      balances: [
+        {
+          amount: picked.amount,
+          currency: picked.currency,
+          ...(picked.granted === undefined ? {} : { granted: picked.granted }),
+          ...(picked.toppedUp === undefined ? {} : { toppedUp: picked.toppedUp }),
+        },
+      ],
+      windows: [],
+    }
   },
 }

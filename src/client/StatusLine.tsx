@@ -1,4 +1,5 @@
 import { Fragment } from 'react'
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import { describeStatus, type ModelStatus, type Severity } from '../shared/display.ts'
 import { resolveProvider } from '../shared/providers.ts'
@@ -54,18 +55,28 @@ function severityColor(severity: Severity): string {
   return 'var(--dsw-alias-label-secondary)'
 }
 
+/** Wrap one part in the platform tooltip when it has something more to say. */
+function withTooltip(node: ReturnType<typeof renderPart>, tooltip: string | undefined, key: number) {
+  if (tooltip === undefined) return node
+  return (
+    <Tooltip key={`tip-${key}`} label={tooltip} side="top">
+      {node}
+    </Tooltip>
+  )
+}
+
 function renderPart(part: StatusPart, t: Translate, key: number) {
   switch (part.kind) {
     case 'label':
       return (
-        <span key={key} style={LABEL_STYLE} title={part.stale ? t('staleHint') : undefined}>
+        <span key={key} style={LABEL_STYLE}>
           {part.stale ? '⚠ ' : ''}
           {part.text}
         </span>
       )
     case 'age':
       return (
-        <span key={key} style={LABEL_STYLE} title={t('staleHint')}>
+        <span key={key} style={LABEL_STYLE}>
           {part.text}
         </span>
       )
@@ -83,16 +94,12 @@ function renderPart(part: StatusPart, t: Translate, key: number) {
           {part.bar === undefined ? '' : ` ${part.bar}`}
         </span>
       )
-    case 'state': {
-      const label = part.errorKind === undefined ? undefined : t(`error.${part.errorKind}`)
-      const title =
-        label === undefined ? undefined : part.errorDetail === undefined ? label : `${label}: ${part.errorDetail}`
+    case 'state':
       return (
-        <span key={key} style={LABEL_STYLE} title={title}>
+        <span key={key} style={LABEL_STYLE}>
           {part.text}
         </span>
       )
-    }
   }
 }
 
@@ -140,6 +147,10 @@ export function StatusLine(props: StatusLineProps) {
     segments: describeStatus({ sourceLabel, status, snapshot, display: config.display, now }),
     t,
     now,
+    ...(sourceLabel === '' ? {} : { sourceLabel }),
+    ...(status.kind === 'ready'
+      ? { modeLabel: status.mode === 'api' ? t('modeApi') : t('modeCodingPlan') }
+      : {}),
   })
   if (parts.length === 0) return null
 
@@ -152,7 +163,7 @@ export function StatusLine(props: StatusLineProps) {
               {SEPARATOR}
             </span>
           ) : null}
-          {renderPart(part, t, index)}
+          {withTooltip(renderPart(part, t, index), part.tooltip, index)}
         </Fragment>
       ))}
     </div>
