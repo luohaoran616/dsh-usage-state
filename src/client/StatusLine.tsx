@@ -63,6 +63,12 @@ function renderPart(part: StatusPart, t: Translate, key: number) {
           {part.text}
         </span>
       )
+    case 'age':
+      return (
+        <span key={key} style={LABEL_STYLE} title={t('staleHint')}>
+          {part.text}
+        </span>
+      )
     case 'balance':
       return (
         <span key={key} style={{ color: 'var(--dsw-alias-label-secondary)' }}>

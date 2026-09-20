@@ -43,10 +43,10 @@ test('the parts of a quota line carry the label, percentages and countdown', () 
   assert.equal(partsToText(parts), 'z.ai / GLM · 5h 42% (4h0m) · 7d 96%')
 })
 
-test('a stale balance line is flagged so the UI can warn about it', () => {
+test('a stale balance line is flagged and says how old the value is', () => {
   const parts = statusParts({
     segments: [
-      { kind: 'label', text: 'DeepSeek', stale: true },
+      { kind: 'label', text: 'DeepSeek', stale: true, staleSince: NOW - 12 * 60_000 },
       { kind: 'balance', amount: '¥66.28', currency: 'CNY' },
     ],
     t,
@@ -55,8 +55,10 @@ test('a stale balance line is flagged so the UI can warn about it', () => {
 
   assert.deepEqual(parts, [
     { kind: 'label', text: 'DeepSeek', stale: true },
+    { kind: 'age', text: '12m ago' },
     { kind: 'balance', text: '¥66.28', currency: 'CNY' },
   ])
+  assert.equal(partsToText(parts), 'DeepSeek · 12m ago · ¥66.28')
 })
 
 test('state segments are translated and keep the failure kind for a tooltip', () => {

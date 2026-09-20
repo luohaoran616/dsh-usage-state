@@ -1,4 +1,4 @@
-import { formatCountdown, type StatusSegment } from '../../src/shared/display.ts'
+import { formatAge, formatCountdown, type StatusSegment } from '../shared/display.ts'
 import type { UsageStateKey } from './locales.ts'
 
 /** The subset of the platform translate function this module needs. */
@@ -18,6 +18,7 @@ export function windowLabel(id: string, t: Translate): string {
 
 export type StatusPart =
   | { kind: 'label'; text: string; stale: boolean }
+  | { kind: 'age'; text: string }
   | { kind: 'balance'; text: string; currency: string }
   | { kind: 'window'; id: string; text: string; percent: string; severity: 'normal' | 'warn' | 'critical'; bar?: string; countdown?: string }
   | {
@@ -42,9 +43,13 @@ export function statusParts(input: { segments: readonly StatusSegment[]; t: Tran
 
   for (const segment of segments) {
     switch (segment.kind) {
-      case 'label':
+      case 'label': {
         parts.push({ kind: 'label', text: segment.text, stale: segment.stale === true })
+        if (segment.staleSince !== undefined) {
+          parts.push({ kind: 'age', text: t('staleAgo', { age: formatAge(segment.staleSince, now) }) })
+        }
         break
+      }
       case 'balance':
         parts.push({ kind: 'balance', text: segment.amount, currency: segment.currency })
         break

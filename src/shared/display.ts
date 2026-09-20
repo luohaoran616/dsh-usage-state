@@ -33,7 +33,7 @@ export type ModelStatus =
 export type Severity = 'normal' | 'warn' | 'critical'
 
 export type StatusSegment =
-  | { kind: 'label'; text: string; stale?: boolean }
+  | { kind: 'label'; text: string; stale?: boolean; /** epoch ms of the kept reading, when stale. */ staleSince?: number }
   | { kind: 'balance'; amount: string; currency: string }
   | { kind: 'window'; windowId: string; percent: string; severity: Severity; resetsAt?: number; bar?: string }
   | {
@@ -61,6 +61,13 @@ export function formatBalance(balance: BalanceAmount): string {
 export function formatPercent(percent: number): string {
   const rounded = Math.round(percent * 10) / 10
   return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`
+}
+
+/** Compact, language-neutral age of a kept reading: `45s`, `12m`, `4h12m`, `3d`. */
+export function formatAge(since: number, now: number): string {
+  // formatCountdown subtracts its second argument from its first, so an age is
+  // "now minus then" — passing them the other way round would always read 0s.
+  return formatCountdown(now, since) ?? '0s'
 }
 
 /** Compact, language-neutral remaining time: `5d`, `3d4h`, `4h12m`, `12m`, `45s`. */
@@ -113,9 +120,17 @@ export function describeStatus(input: StatusInput): StatusSegment[] {
   if (status.kind === 'needs-endpoint') return [{ kind: 'state', state: 'needs-endpoint' }]
   if (status.kind === 'unsupported') return [{ kind: 'state', state: 'unsupported' }]
 
-  const label: StatusSegment = snapshot?.stale === true
-    ? { kind: 'label', text: input.sourceLabel, stale: true }
-    : { kind: 'label', text: input.sourceLabel }
+  const label: StatusSegment =
+    snapshot?.stale === true
+      ? {
+          kind: 'label',
+          text: input.sourceLabel,
+          stale: true,
+          // "kept the last good value" is only actionable if the user can see how
+          // old it is (design: stale marker = time + ⚠).
+          ...(snapshot.fetchedAt > 0 ? { staleSince: snapshot.fetchedAt } : {}),
+        }
+      : { kind: 'label', text: input.sourceLabel }
 
   if (snapshot === undefined) return [label, { kind: 'state', state: 'loading' }]
 

@@ -237,7 +237,7 @@ test('a stale reading stays visible and is marked', () => {
             mode: 'api',
             balances: [{ amount: 12.5, currency: 'USD' }],
             windows: [],
-            fetchedAt: 1_000,
+            fetchedAt: Date.now() - 12 * 60_000,
             stale: true,
             error: { kind: 'network', detail: 'offline' },
           },
@@ -250,6 +250,7 @@ test('a stale reading stays visible and is marked', () => {
 
   assert.match(html, /⚠/)
   assert.match(html, /showing the last value that was fetched successfully/i)
+  assert.match(html, /12m ago/)
   assert.match(html, /\$12\.50/)
 })
 

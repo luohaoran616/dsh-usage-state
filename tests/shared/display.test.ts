@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { DEFAULT_CONFIG } from '../../src/shared/config.ts'
 import {
   describeStatus,
+  formatAge,
   formatBalance,
   formatCountdown,
   formatPercent,
@@ -42,6 +43,14 @@ test('formatCountdown scales from seconds to days and reports a passed reset as 
   assert.equal(formatCountdown(now + 5 * 24 * 3600_000, now), '5d')
   assert.equal(formatCountdown(now - 1, now), '0s')
   assert.equal(formatCountdown(undefined, now), undefined)
+})
+
+test('formatAge reports how old a kept reading is', () => {
+  const now = 1_000_000_000_000
+  assert.equal(formatAge(now - 45_000, now), '45s')
+  assert.equal(formatAge(now - 12 * 60_000, now), '12m')
+  assert.equal(formatAge(now - (4 * 60 + 12) * 60_000, now), '4h12m')
+  assert.equal(formatAge(now - 3 * 24 * 3600_000, now), '3d')
 })
 
 test('progressBar fills proportionally and respects its width', () => {
@@ -146,7 +155,7 @@ test('describeStatus keeps a stale reading visible and marks it stale', () => {
   })
 
   assert.deepEqual(segments, [
-    { kind: 'label', text: 'DeepSeek', stale: true },
+    { kind: 'label', text: 'DeepSeek', stale: true, staleSince: 1_000 },
     { kind: 'balance', amount: '¥66.28', currency: 'CNY' },
   ])
 })
