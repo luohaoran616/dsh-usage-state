@@ -270,7 +270,8 @@ export function SettingsSection(props: SettingsSectionProps) {
       <section style={CARD}>
         <strong>{t('sectionModels')}</strong>
         <span style={MUTED}>{t('sectionModelsHint')}</span>
-        {configured.length === 0 ? <span style={MUTED}>{t('empty')}</span> : configured.map((row, index) => renderRow(row, index, configured))}
+        {configured.length === 0 && available.length === 0 ? <span style={MUTED}>{t('empty')}</span> : null}
+        {configured.map((row, index) => renderRow(row, index, configured))}
         {available.length === 0 ? null : (
           <>
             <span style={MUTED}>{t('unconfiguredModel')}</span>

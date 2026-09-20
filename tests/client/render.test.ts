@@ -324,3 +324,31 @@ test('the settings page reports an unavailable settings transport instead of ren
   assert.match(html, /does not serve settings/)
   assert.doesNotMatch(html, /API balance/)
 })
+
+test('the empty hint only shows when there is nothing to list at all', () => {
+  const config = configWith([{ provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' }])
+  const withModels = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [{ provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek Flash' }],
+      }),
+      settings: settingsWith(config),
+      credentials: CREDENTIALS,
+    }),
+  )
+  assert.doesNotMatch(withModels, /No models found yet/)
+
+  const withoutModels = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({}),
+      settings: settingsWith(configWith([])),
+      credentials: CREDENTIALS,
+    }),
+  )
+  assert.match(withoutModels, /No models found yet/)
+})
