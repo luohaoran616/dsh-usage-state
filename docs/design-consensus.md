@@ -142,6 +142,6 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 8. **回合行的"固定值 + Δ"**（已定方向，待实现）
    用户观察到 turnTail 与 dock 值同步，"不固定就没有意义"。形态定为固定值 + 较上一回合的变化量；**持久化首选 session log + 投影**（随会话生命周期自动清理、可随会话迁移、平台原生形状），备选是插件自有文件 + LRU/TTL 清理。
    动工前必须先做一次可行性实验：真实的读取侧校验器（`dsh-session-persistence` 的 `validateStoredEvents`）是否会拒绝"未知类型且不带 `ignorable`"的事件——`Session.append()` 在 0.1.5-rc.2 没有参数能设置该标记，若会被拒绝则绝不可写入（append-only，写进去无法撤销）。
-   执行计划见 `plans/turn-usage-pinning.md`（过渡文档，实施完成后删除）。
+   执行计划见 `plans/` 下的过渡文档（实施完成后删除，故此处不写死链接）。
 9. **`.d.ts` 与兼容性声明**（本文档校正）
    原文写"产出 `.d.ts`"与"声明 `dsh >= 0.1.5-rc.2`"，实现都不成立：`dts: false`，且平台 manifest schema 没有 `compatibility` 字段。已按事实改写。
