@@ -1,109 +1,133 @@
 # dsh-usage-state
 
-一个精简的 [DSH (DeepSeek Harness)](https://github.com/deepseek-ai) 插件：只做**余额 / 额度显示**。
+**中文** | [English](README.en.md)
 
-A minimal DSH plugin that shows **account balance** (API mode) or **coding-plan quota usage** (5h / 7d windows) for the model you are currently using.
+在 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai) 里一眼看到你的**账户余额**或**套餐额度**——就在输入框下方和每个已完成回合的下方。
+
+> A minimal DSH plugin that shows your account **balance** (API mode) or **coding-plan quota** (5h / 7d) for the model you are using, right under the composer and every completed turn.
+
+```
+输入框统计行下方：      z.ai / GLM · 5h 12% (4h0m) ▓▓▓░░░░░ · 7d 59% (3d17h) ▓▓▓▓▓░░░
+                        DeepSeek · ¥58.13
+悬停任意一段：          Source DeepSeek · Mode API balance · Granted 0 · Topped up 58.13
+```
+
+## 特性
+
+- **零配置可用**：按 provider 自动识别该用哪个数据源与模式，DSH 里配过的密钥会被自动复用，不填任何东西就能看到读数。
+- **账户级配置**：余额与额度是账户级的，所以每个供应商只配一次（`自动` / `API` / `Coding Plan` / `隐藏`），模型清单只作展示。
+- **两处展示**：输入框统计行的正下方一行，以及每个已完成回合的下方一行；两处共用同一套解析规则。
+- **失败不撒谎**：请求失败时保留上次成功值并标明「多久之前 + ⚠」，**绝不显示 0 或伪造数据**；密钥无效、接口报错、网络不可达会分别给出可读原因。
+- **悬浮提示**：每段文字悬停显示一行放不下的信息——数据源与模式、窗口的绝对重置时刻、余额的赠送/充值构成、失败原因与原始消息。
+- **中英双语**：跟随 DSH 的语言设置（`locale.preference`），设置页与状态行都不含硬编码文案。
+- **只做显示**：没有会话成本统计、价格目录、历史账单、预算、峰谷计价——`dsh-cost-meter` 里除展示之外的逻辑这里一律不做。
 
 ## 安装
 
 ```bash
 dsh plugin --profile web add github:takboo/dsh-usage-state
-# 然后重启 DSH（bundle patch 只在启动时读取）
 ```
 
-开发时可以直接装本地目录：`dsh plugin --profile web add /path/to/dsh-usage-state`。
+装好后**重启 DSH**（插件的 bundle patch 只在启动时读取）。卸载：
 
-## 这个插件做什么
+```bash
+dsh plugin --profile web remove dsh-usage-state
+```
 
-- 自动读取 DSH 里配置的供应商，在设置页按你的顺序每个供应商一行。
-- 每个供应商选一次模式：`自动`（默认）/ `API` / `Coding Plan` / `隐藏`。余额与额度是**账户级**的，所以不需要按模型重复配置；`自动` 会自己识别该用哪个数据源。
-- `API` 模式显示账户余额；`Coding Plan` 模式显示 5h / 7d 已用百分比、重置倒计时。
-- 展示在两个位置：每个已完成回合下方，以及输入框统计行正下方；回合结束与空闲 5 分钟各刷新一次。
-- 设置页与状态行中英双语，跟随 DSH 语言设置。
+开发时可直接装本地目录：`dsh plugin --profile web add /path/to/dsh-usage-state`。
 
-## 不做什么
+## 快速开始
 
-会话成本统计、模型价格目录、历史账单、预算图框、峰谷计价提醒、自定义余额端点、会话日志回填——也就是 `dsh-cost-meter` 里除展示之外的全部逻辑，这里都不做。
+1. 打开 **设置 → 用量状态**：DSH 里配置的每个供应商一行。
+2. 保持默认的 **自动** 即可（它会识别数据源与主模式）；需要时改成 `API` / `Coding Plan` / `隐藏`，或用 ↑↓ 调整顺序。
+3. 该供应商的账户读数会出现在输入框下方与每个回合下方。
 
-## 状态
+若某个数据源需要端点或密钥（例如自建的 Sub2API、或尚未配置的 z.ai），展开该行的 **高级**：可覆盖数据源、填接口地址、指定凭据名、粘贴密钥（写入 DSH 凭据库）。
 
-**实现完成、已发布、已在本机验收通过。**
+## 支持的数据源
 
-- ✅ 实现：宿主半边（四家数据源 / 缓存与调度 / 凭据 / 设置命名空间 / Typert RPC）+ 客户端半边（双语状态行 / provider 级设置页）+ 构建产物（`lib/`）
-- ✅ 已发布：<https://github.com/takboo/dsh-usage-state>
-- ✅ 真机验收：DeepSeek 余额（`DeepSeek · ¥58.13`，随消耗实时变化）、z.ai / GLM 额度（`z.ai / GLM · 5h 12% (4h0m) ▓▯▯▯ · 7d 59% (3d17h)`）、悬浮提示、失败如实显示、设置页 provider 三态与排序
-- ✅ 已卸载 `dsh-cost-meter`（重启后生效；历史数据 `~/.dsh/storages/cost-meter/` 保留未动）
-- ✅ `dsh plugin add github:takboo/dsh-usage-state` 已实测可装（在临时目录安装发布包，宿主入口 / typert 清单 / client bundle / cordis.patch.yml 均校验通过）
+| 数据源 | API 模式 | Coding Plan 模式 | 凭据 |
+|---|---|---|---|
+| DeepSeek 官方 | 余额（CNY / USD） | —（官方无 coding plan） | `DEEPSEEK_API_KEY` |
+| z.ai / 智谱 GLM | — | 5h / 7d 已用 % | `ZAI_API_KEY` 等 |
+| Kimi 国内版 | Moonshot 按量余额 | Kimi Code 订阅窗口 | `MOONSHOT_API_KEY` / `KIMI_CODING_API_KEY` |
+| Sub2API（自建网关） | 余额 / key 配额 | `rate_limits[]` 的 5h / 7d | `SUB2API_API_KEY` + 实例地址 |
 
-**尚未用真实 key 覆盖的部分**（代码与单测已就绪）：Kimi（Moonshot 余额 + Kimi Code 窗口）、Sub2API（`/v1/usage`）、阈值变色的视觉效果（12%/59% 未触发阈值；把黄色阈值临时改成 10 即可看到）。
+- **z.ai 分区域**：coding plan 的 key 只在自己区域的站点有效（国内 `open.bigmodel.cn` / 国际 `api.z.ai`）。默认国内站，失败时自动镜像重试；也可在设置里钉死端点。
+- **其他厂商**（Claude Pro/Max、MiniMax、OpenRouter、Codex、Antigravity、Volcengine Ark…）未实现，但适配器契约与候选清单已备好，见 [`docs/adapters.md`](docs/adapters.md)。
 
-出问题时的一键恢复：`dsh plugin --profile web remove dsh-usage-state`。
+## 显示与交互
 
-## v1 支持的数据源
+**位置**：`conversation.composer.dock`（统计行正下方，几何与原生行对齐）与 `conversation.chat.turnTail`（每个已完成回合下方）。
 
-| 数据源 | API 模式 | Coding Plan 模式 |
-|---|---|---|
-| DeepSeek 官方 | 余额（CNY/USD） | —（官方无 coding plan） |
-| z.ai / 智谱 GLM | — | 5h / 7d 已用 % |
-| Kimi 国内版 | Moonshot 按量余额 | Kimi Code 订阅窗口 |
-| sub2api（自建网关） | 余额 / key 配额 | `rate_limits[]` 的 5h / 7d |
+**元素**：供应商标签 · 余额金额 + 币种 · 5h / 7d 已用百分比 · 重置倒计时 · 迷你进度条 · 阈值变色（默认 ≥80% 黄、≥95% 红，可在设置里改）。
 
-z.ai 的 coding plan 分国内/国际两个站点，**key 只在自己区域有效**；默认国内站，失败时自动镜像重试（也可在设置里钉死端点）。
+**口径**：百分比一律是**已用**（与 z.ai / Claude 官方一致）；API 模式显示余额，Coding Plan 模式显示 5h / 7d。
 
-其余厂商（Claude Pro/Max、MiniMax、OpenRouter、Codex、Antigravity、Volcengine Ark 等）只保留 adapter 契约与实现文档，不写实现。
+**降级**：
+
+| 情况 | 显示 |
+|---|---|
+| 未配置 | 灰色「未配置」 |
+| 自建源缺端点 | 「需要先填写接口地址」 |
+| 请求失败（有旧值） | 旧值 + `12m ago` + `⚠`，悬停给出原因 |
+| 首次失败（无旧值） | 只显示本地化原因（不显示 0） |
+
+## 刷新与网络
+
+- 回合结束后 **2 秒**刷新（等 provider 结算），空闲时每 **5 分钟**兜底。
+- 同一数据源 **60 秒**内不重复发真实请求；并发调用共享同一次在途请求；失败的请求不节流（可立即重试）。
+- 刷新间隔可在设置里调整。
+
+## 凭据与隐私
+
+- 凭据探测顺序：设置页覆盖 → 供应商声明的 `apiKeyEnv`（`llm-deepseek` / `llm-pi-ai`）→ 数据源内置的 ref 名 → DSH 凭据库。
+- 密钥在设置页写入 **DSH 凭据库**（`~/.dsh/.credentials.yaml`）；**插件自身不保存明文**。客户端只拿到「是否已配置 / 来源」，永远拿不到密钥值。
+- 环境变量提供的密钥是只读的：界面会禁用输入框并说明原因。
+- 插件读取的内容只有余额/额度数字与会话当前使用的模型，**不写会话日志**，也不上报任何数据。
+
+## 兼容性
+
+- 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20（`engines`）。
+- 通过 GitHub 安装，**不发布到 npm**（`private: true`）。
+- 版本 `0.1.0`：DeepSeek 与 z.ai 已在真机验证，其余见下。
+
+## 已知限制
+
+- **Kimi、Sub2API 未经真机验证**（本机无凭据），代码与单测已就绪；Sub2API 的 `/v1/usage` 属未文档化接口，已按易错接口做容错。
+- **回合下方显示的是"当前值"而非"该回合结束时的值"**——两处读数同源。要固定成"当时的值 + 较上一回合的变化"需要额外的持久化（方案已定，见 [`docs/implementation.md`](docs/implementation.md) §6）。
+- **点击状态行不会打开设置**（客户端没有公开的"打开设置面板"服务）；细节通过悬浮提示呈现。
+- 完整清单见 [`docs/implementation.md`](docs/implementation.md) §6。
+
+## 开发
+
+```bash
+npm install          # 若 ~/.npm 不可写：npm install --cache /tmp/npm-cache
+npm test             # node:test 直接跑 .ts / .tsx（需要 Node >= 22.6）
+npm run typecheck    # tsc --noEmit
+npm run build        # tsdown → lib/（宿主 index.js + typert.js，浏览器 client.js）
+npm run watch        # 只重建 client.js；客户端会被 HMR 热替换，无需刷新页面
+```
+
+宿主机改动需要重启 DSH；客户端改动 `npm run watch` 即可。`lib/` 产物**必须提交进仓库**——`dsh plugin add github:...` 直接装仓库、没有构建步骤（`npm test` 里的构建守卫会检查信封、require 白名单与 `exports` 指向）。
+
+```
+src/host/        宿主：数据源适配器、缓存调度、凭据、设置、RPC
+src/client/      浏览器：词典、状态行、设置页、状态镜像
+src/shared/      两端共用：类型、配置、provider 解析、显示逻辑
+lib/             构建产物（提交，供 github 安装）
+tests/           与 src 对应；tests/build 校验的是产物本身
+```
 
 ## 文档
 
 | 文档 | 内容 |
 |---|---|
-| [`docs/design-consensus.md`](docs/design-consensus.md) | **主文档**：范围、数据源、配置模型、密钥策略、展示与刷新、工程形态、验收步骤、风险 |
-| [`docs/implementation.md`](docs/implementation.md) | **实现与验证总览**：代码地图、决策→实现→测试→验证追溯表、未验证清单、平台硬知识 |
-| [`docs/adapters.md`](docs/adapters.md) | **添加数据源**：契约、四步流程、约定与坑、候选厂商清单、排查表 |
-| [`docs/research/README.md`](docs/research/README.md) | 侦察文档索引与可信度说明 |
+| [`docs/implementation.md`](docs/implementation.md) | 实现与验证总览：代码地图、决策→实现→测试→验证追溯、未验证清单、平台注意事项 |
+| [`docs/adapters.md`](docs/adapters.md) | 添加数据源：契约、四步流程、约定与坑、候选厂商、排查表 |
+| [`docs/design-consensus.md`](docs/design-consensus.md) | 设计共识与修订记录（每条决策的来龙去脉） |
+| [`docs/research/README.md`](docs/research/README.md) | 只读侦察报告索引（各厂商接口、被替代插件剖析、DSH RPC 契约） |
 
-## 本地验收清单
+## 许可
 
-重启 DSH 后依次确认（当前机器上只有 `DEEPSEEK_API_KEY`，所以第 3–5 步先只有 DeepSeek 可验）：
-
-| # | 操作 | 期望 |
-|---|---|---|
-| 1 | 打开设置 → 侧边栏出现「用量状态」 | 页面能打开，中英跟随 DSH 语言设置切换 |
-| 2 | 供应商列表 | 列出 DSH 里配置的供应商（每个一行，含其模型清单）；DeepSeek 显示「自动识别为 DeepSeek · API balance」 |
-| 3 | 用默认的「自动」（或点「API balance」） | 输入框下方的统计行正下方出现一行，显示 `DeepSeek · ¥余额`；每个已完成回合下方也有一行 |
-| 4 | 点「立即刷新」 | 余额更新，时间戳随之变化 |
-| 5 | 断开网络/改成错误密钥 | 显示上次成功值 + ⚠，悬停提示"显示的是上一次成功获取的值"；不显示 0 或空白 |
-| 6 | 配置 z.ai / Kimi / Sub2API | 选对应数据源后出现「接口地址」「密钥」区块；填入后 coding-plan 模式显示 `5h x% (倒计时) · 7d y%` |
-| 7 | 改显示设置 | 阈值变色、进度条开关、刷新间隔立即生效 |
-
-## 开发
-
-目标环境：DSH `>= 0.1.5-rc.2`，插件 profile `web`（`~/.dsh/profiles/web`）。
-
-```bash
-npm install          # 依赖（若 ~/.npm 不可写，加 --cache /tmp/npm-cache）
-npm test             # node:test 直接跑 .ts（需要 Node >= 22.6；本机 26.x）
-npm run typecheck    # tsc --noEmit
-npm run build        # tsdown → lib/（宿主 index.js/typert.js + 浏览器 client.js）
-npm run watch        # 只重建 lib/client.js，客户端会被 HMR 热替换，无需刷新页面
-```
-
-宿主半边改动需要重启 DSH；`lib/` 产物**必须提交进仓库**——`dsh plugin add github:...` 直接装仓库，没有构建步骤（`npm test` 里的构建守卫会检查信封、require 白名单与 exports 指向）。
-
-```
-docs/            设计共识、adapter 扩展文档、侦察报告
-src/host/        宿主：适配器、缓存调度、凭据、设置、RPC
-src/client/      浏览器：词典、状态行、设置页、状态镜像
-src/shared/      两端共用：类型、配置、显示逻辑、RPC 线上类型
-lib/             构建产物（提交，供 github 安装）
-tests/           与 src 对应；tests/build 校验的是**产物**本身
-```
-
----
-
-## English (short)
-
-A minimal DSH plugin that displays, for the model currently in use, either the account **balance** (API mode) or the **coding-plan quota usage** (5h / 7d percentage with reset countdown). Model list is auto-discovered from DSH, each model is assigned `API` / `Coding Plan` / `Hidden`, and the line is rendered under each completed turn and directly below the composer stats row. Bilingual (zh / en), following the DSH locale.
-
-Scope is display-only: no cost accounting, pricing catalog, history, budgets, or peak/off-peak alerts.
-
-Implementation is complete and already installed into the local `web` profile: a host half (four data-source adapters, refresh scheduler, credential probing, DSH settings namespace, minimal Typert RPC) plus a browser half (bilingual status lines under each completed turn and below the composer stats row, and a settings page with per-model tri-state, reordering and credential status). Verification is by `node:test` (unit tests per module, plus tests over the built artifacts). See [`docs/adapters.md`](docs/adapters.md) to add another provider.
+[MIT](LICENSE)

@@ -1,9 +1,9 @@
 {
   "name": "dsh-usage-state",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "DSH plugin: show account balance (API mode) or coding-plan quota usage (5h/7d) for the model currently in use",
+  "description": "DSH plugin: show account balance (API mode) or coding-plan quota (5h/7d) for the model in use",
   "license": "MIT",
   "engines": {
     "node": ">=20"
@@ -65,10 +65,28 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
+    "README.en.md",
     "LICENSE",
     "docs/adapters.md"
   ],
   "peerDependencies": {
     "react": "^18.2.0"
+  },
+  "keywords": [
+    "deepseek",
+    "dsh",
+    "dsh-plugin",
+    "usage",
+    "balance",
+    "quota",
+    "coding-plan"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/takboo/dsh-usage-state.git"
+  },
+  "homepage": "https://github.com/takboo/dsh-usage-state#readme",
+  "bugs": {
+    "url": "https://github.com/takboo/dsh-usage-state/issues"
   }
 }

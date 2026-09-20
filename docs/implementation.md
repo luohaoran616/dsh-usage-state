@@ -89,7 +89,24 @@
 - **发布路径**：`npm install github:takboo/dsh-usage-state` → 宿主入口可加载、typert 清单可用、client bundle 随包发布、`cordis.patch.yml` 到位。
 - **卸载**：web profile 的 `dependencies` / `dsh.profile.bundles` / `node_modules` 均无 `dsh-cost-meter`。
 
-## 5. 未验证 / 未实现 / 明确不做
+## 5. 人工验收清单（重启 DSH 后逐项确认）
+
+安装或改动宿主半边后，重启 DSH（bundle patch 只在启动时读取），然后按此表确认。只有 DeepSeek 凭据时，第 3–5 步先只能验它。
+
+| # | 操作 | 期望 |
+|---|---|---|
+| 1 | 打开设置 → 侧边栏出现「用量状态」 | 页面可打开；中英跟随 DSH 语言设置切换 |
+| 2 | 供应商列表 | 列出 DSH 里配置的供应商（每行含其模型清单）；DeepSeek 显示「自动识别为 DeepSeek · API balance」 |
+| 3 | 保持默认「自动」（或点「API balance」） | 输入框统计行正下方出现一行 `DeepSeek · ¥余额`；每个已完成回合下方也有一行 |
+| 4 | 点「立即刷新」 | 数值与时间戳更新 |
+| 5 | 故意用错误密钥（或在设置里清掉） | 保留上次成功值 + `⚠`（多久之前），悬浮显示原因；**不显示 0 或空白** |
+| 6 | 配置 z.ai / Kimi / Sub2API | 出现「数据源 / 接口地址 / 凭据名 / 密钥」区块；填入后 coding-plan 模式显示 `5h x% (倒计时) ▓▓░░░░░░ · 7d y%` |
+| 7 | 改显示设置（阈值、进度条、刷新间隔） | 立即生效；把黄色阈值临时改成 10 可确认阈值变色 |
+| 8 | 悬停任意一段文字 | 出现悬浮提示：数据源 + 模式（+ 窗口绝对重置时刻 / 余额赠送与充值构成 / 失败原因） |
+
+出问题时的恢复命令：`dsh plugin --profile web remove dsh-usage-state`。
+
+## 6. 未验证 / 未实现 / 明确不做
 
 **未用真实数据验证**（代码与单测就绪）：
 
@@ -107,7 +124,7 @@
 
 **明确不做**（与共识一致）：会话成本统计、价格目录、历史账单、预算、峰谷计价、native-search 计费、网关额度、自定义余额端点。
 
-## 6. 命令
+## 7. 命令
 
 ```bash
 npm install                                     # 依赖（~/.npm 不可写时加 --cache /tmp/npm-cache）
@@ -123,7 +140,7 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
 
 宿主半边改动**需要重启 DSH**；客户端半边改动 `npm run watch` 即可热替换。
 
-## 7. 提交清单（39 次，按阶段）
+## 8. 提交清单（39 次，按阶段）
 
 | 阶段 | 提交 |
 |---|---|
@@ -136,7 +153,7 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
 | 真机修复 | `f50f4e7` 平台校验器测试 · `ac9e7e3` SSR 渲染测试+候选凭据名 · `a98d610` 注入 `remote.session` · `47972d1` 空状态 · `3b87781` **`typertRemote` 自引用** · `ccb9adc` provider 级配置 · `8384738` provider 级设置页 |
 | 真机加固 | `c93ed6d` `ctx.get` 免 inject · `74a189b` 界面显示失败原因 · `6f45043` 凭据兜底 · `b6449ff` 陈旧时间 · `445d5dc` z.ai 错误信封+镜像+声明端点 · `002e571` 悬浮提示 · `ab26479` 状态更新 |
 
-## 8. 从真机调试里学到的平台事实（下次直接复用）
+## 9. 从真机调试里学到的平台事实（下次直接复用）
 
 1. **`typertRemote.service` 必须是服务对象本身**（`Reflect.get(value,'service') !== original` 会导致每次派发 `gateway/binding-invalid`）；`serviceKey` 才是名字。症状是"插件静默返回空"。
 2. **宿主 codec 必须是 zod v4**（loader 检查 `'_zod' in schema`），因此 `zod` 是运行时依赖。

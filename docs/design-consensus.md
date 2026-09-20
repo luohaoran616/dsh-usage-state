@@ -92,7 +92,7 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 - **TypeScript + `tsdown` 构建**，产出宿主 `lib/index.js`、`lib/typert.js` 与客户端 `lib/client.js`（不产出 `.d.ts`：运行时消费不需要）；解析器用 `node:test` 写单测（sub2api 字段漂移、z.ai 窗口语义推断最需要测）。
 - 包名 `dsh-usage-state`；插件/profile 条目 id 与设置命名空间 `usage-state`；`package.json` 的 `dsh` 字段声明 `bundle.patch` + `client.platform: "web"`；`cordis.patch.yml` 里 `insert` 一行。
 - **实测环境**：DSH `0.1.5-rc.2` + Node ≥20（`engines`）。平台的 manifest schema **没有** `compatibility` 字段（它只认 `bundle` / `profile` / `client` / `configTrees` / `sessionFormatMigration` / `moduleFallback`），因此没有声明这一项；cost-meter 的 `dsh.compatibility` 与 `dshhub` 是市场元数据，未被平台读取。
-- 文档：`README.md`（中英）、`docs/implementation.md`（实现与验证总览）、`docs/adapters.md`（adapter 契约 + 已实现厂商字段路径与陷阱 + 未实现候选清单）、`src/host/sources/_template.ts`（新数据源骨架）。
+- 文档：`README.md`（中文，公开仓库门面）+ `README.en.md`（英文）、`docs/implementation.md`（实现与验证总览）、`docs/adapters.md`（adapter 契约 + 已实现厂商字段路径与陷阱 + 未实现候选清单）、`src/host/sources/_template.ts`（新数据源骨架）。
 
 ## 10. 交付与验收
 
@@ -109,7 +109,7 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 - **z.ai monitor 路径**：社区逆向所得。**已用真实 key 验证通过**（并因此发现两个我方缺陷：把 200 错误信封误报成解析失败、默认端点用错区域），同时保留旧 `coding_plan/usage` 兜底。
 - **凭据写入被环境变量遮蔽会被拒**：需要 UI 提示路径。
 - **composer 行的对齐依赖平台内部 CSS 变量**（`--dsh-chat-content-width` 等），非公开契约 → 变量缺失时必须优雅退化，不能错版。
-- **仍未经真机验证**：Kimi（Moonshot 余额 + Kimi Code 窗口）、Sub2API（需要自建实例地址）、阈值变色的视觉、手写密钥写入→生效。详见 [`implementation.md`](implementation.md) §5。
+- **仍未经真机验证**：Kimi（Moonshot 余额 + Kimi Code 窗口）、Sub2API（需要自建实例地址）、阈值变色的视觉、手写密钥写入→生效。详见 [`implementation.md`](implementation.md) §6。
 - **凭据服务的可见性**：profile 根级插入的行未必能拿到 `credentials` 服务（作用域），因此加了直读兜底；来源标注可用来判断平台路径是否真的在工作，若确认可用应删掉兜底。
 - **回合行的固定值**：目前 turnTail 与 dock 显示同一份"最新读数"，老回合下方显示的是当前值。方案（C2+D：固定值 + 较上一回合 Δ）已定，持久化方式待定，见 §13 修订 8。
 
