@@ -81,10 +81,13 @@ export function createCredentialLookup(ctx: PluginContextLike): CredentialLookup
 /**
  * Publish the service under the name the RPC gateway resolves.
  *
- * The gateway validates a visible `typertRemote` binding on every dispatch and
- * fails with `gateway/binding-invalid` without it, so the binding is not
- * optional decoration. It is non-enumerable to keep it out of any serialization
- * of the service object.
+ * The binding shape is exact and unforgiving (`dsh-api-gateway`'s `readBinding`):
+ *   - `service` must be the service OBJECT itself, not its name;
+ *   - `serviceKey` must be the registered name;
+ *   - `namespace` must equal the RPC namespace.
+ * A mismatch fails every dispatch with `gateway/binding-invalid` — which looks
+ * like "the plugin silently returns nothing" from the browser. Non-enumerable so
+ * it stays out of any serialization of the service.
  */
 export function provideUsageState(
   ctx: Pick<PluginContextLike, 'provide'>,
@@ -95,7 +98,7 @@ export function provideUsageState(
     enumerable: false,
     writable: false,
     value: {
-      service: USAGE_STATE_SERVICE,
+      service,
       serviceKey: USAGE_STATE_SERVICE,
       namespace: USAGE_STATE_RPC_NAMESPACE,
     },

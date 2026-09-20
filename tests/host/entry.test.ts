@@ -132,9 +132,14 @@ test('applying the plugin provides the service under the name the gateway resolv
   const service = createUsageState(host.ctx, { fetch, now: host.time })
 
   assert.equal(host.provided.get('usageState'), service)
-  const binding = (service as unknown as { typertRemote?: { service: string; serviceKey: string; namespace: string } })
+
+  // Mirrors dsh-api-gateway's readBinding: `service` is the service OBJECT, and a
+  // string there fails every dispatch with gateway/binding-invalid.
+  const binding = (service as unknown as { typertRemote?: { service: unknown; serviceKey: string; namespace: string } })
     .typertRemote
-  assert.deepEqual(binding, { service: 'usageState', serviceKey: 'usageState', namespace: 'usageState' })
+  assert.equal(binding?.service, service)
+  assert.equal(binding?.serviceKey, 'usageState')
+  assert.equal(binding?.namespace, 'usageState')
   assert.equal(Object.keys(service).includes('typertRemote'), false, 'the binding is hidden from enumeration')
 })
 

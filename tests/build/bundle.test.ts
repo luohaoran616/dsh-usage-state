@@ -147,8 +147,9 @@ test('the built host bundle wires up and reads a balance through a fake host', a
   assert.deepEqual(state.snapshots['deepseek:api']?.balances, [{ amount: 66.28, currency: 'CNY' }])
   assert.equal(state.sources.length, 4)
   assert.equal(provided.get('usageState'), service)
-  assert.deepEqual(
-    (service as unknown as { typertRemote: unknown }).typertRemote,
-    { service: 'usageState', serviceKey: 'usageState', namespace: 'usageState' },
-  )
+  const builtBinding = (service as unknown as { typertRemote?: { service: unknown; serviceKey: string; namespace: string } })
+    .typertRemote
+  assert.equal(builtBinding?.service, service, 'binding.service must be the service object itself')
+  assert.equal(builtBinding?.serviceKey, 'usageState')
+  assert.equal(builtBinding?.namespace, 'usageState')
 })
