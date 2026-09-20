@@ -48,6 +48,8 @@ dsh plugin --profile web add github:takboo/dsh-usage-state
 | Kimi 国内版 | Moonshot 按量余额 | Kimi Code 订阅窗口 |
 | sub2api（自建网关） | 余额 / key 配额 | `rate_limits[]` 的 5h / 7d |
 
+z.ai 的 coding plan 分国内/国际两个站点，**key 只在自己区域有效**；默认国内站，失败时自动镜像重试（也可在设置里钉死端点）。
+
 其余厂商（Claude Pro/Max、MiniMax、OpenRouter、Codex、Antigravity、Volcengine Ark 等）只保留 adapter 契约与实现文档，不写实现。
 
 ## 文档
@@ -55,6 +57,7 @@ dsh plugin --profile web add github:takboo/dsh-usage-state
 | 文档 | 内容 |
 |---|---|
 | [`docs/design-consensus.md`](docs/design-consensus.md) | **主文档**：范围、数据源、配置模型、密钥策略、展示与刷新、工程形态、验收步骤、风险 |
+| [`docs/implementation.md`](docs/implementation.md) | **实现与验证总览**：代码地图、决策→实现→测试→验证追溯表、未验证清单、平台硬知识 |
 | [`docs/adapters.md`](docs/adapters.md) | **添加数据源**：契约、四步流程、约定与坑、候选厂商清单、排查表 |
 | [`docs/research/README.md`](docs/research/README.md) | 侦察文档索引与可信度说明 |
 
@@ -65,8 +68,8 @@ dsh plugin --profile web add github:takboo/dsh-usage-state
 | # | 操作 | 期望 |
 |---|---|---|
 | 1 | 打开设置 → 侧边栏出现「用量状态」 | 页面能打开，中英跟随 DSH 语言设置切换 |
-| 2 | 模型列表 | 列出 DSH 里配置的模型；`deepseek-flash` 已自动建议数据源 `DeepSeek` 且模式为「隐藏」 |
-| 3 | 把 `deepseek-flash` 设为「API 余额」 | 输入框下方的统计行正下方出现一行，显示 `DeepSeek · ¥余额`；每个已完成回合下方也有一行 |
+| 2 | 供应商列表 | 列出 DSH 里配置的供应商（每个一行，含其模型清单）；DeepSeek 显示「自动识别为 DeepSeek · API balance」 |
+| 3 | 用默认的「自动」（或点「API balance」） | 输入框下方的统计行正下方出现一行，显示 `DeepSeek · ¥余额`；每个已完成回合下方也有一行 |
 | 4 | 点「立即刷新」 | 余额更新，时间戳随之变化 |
 | 5 | 断开网络/改成错误密钥 | 显示上次成功值 + ⚠，悬停提示"显示的是上一次成功获取的值"；不显示 0 或空白 |
 | 6 | 配置 z.ai / Kimi / Sub2API | 选对应数据源后出现「接口地址」「密钥」区块；填入后 coding-plan 模式显示 `5h x% (倒计时) · 7d y%` |
