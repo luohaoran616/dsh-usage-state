@@ -35,8 +35,8 @@ dsh plugin --profile web add github:takboo/dsh-usage-state
 - ✅ 实现完成：宿主半边（4 家适配器 / 缓存调度 / 凭据 / 设置命名空间 / RPC）+ 客户端半边（双语状态行 / 设置页）+ 构建产物（`lib/`）
 - ✅ 已装入本机 web profile（`dsh plugin add`，profile 树里能看到 `usage-state` 行；宿主入口、typert 清单、client bundle 均已从 profile 视角验证可解析加载）
 - ⬜ UI 验收：需要**重启 DSH**（bundle patch 只在启动时读取），然后走下面的验收清单
-- ⬜ 卸载 `dsh-cost-meter`
-- ⬜ 发布，使 `dsh plugin add github:takboo/dsh-usage-state` 可用
+- ✅ 已发布：<https://github.com/takboo/dsh-usage-state>（公开仓库；从 GitHub 全新克隆验证过产物完整、宿主入口零依赖可加载、client bundle 信封正确、清单通过平台 `validateTypertManifest`）
+- ⬜ 卸载 `dsh-cost-meter`（按共识，等 UI 验收通过后再卸）
 
 ## v1 支持的数据源
 

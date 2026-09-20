@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { validateTypertManifest } from '@deepseek-ai/dsh-typert-loader'
 
 import {
   credentialReportSchema,
@@ -23,6 +24,12 @@ function assertStrictCodec(codec: unknown, label: string): void {
   assert.ok('_zod' in (candidate.schema ?? {}), `${label} schema must be a zod v4 schema`)
   assert.equal(typeof candidate.schema?.parse, 'function', `${label} schema must expose parse`)
 }
+
+test('the platform validator accepts the manifest as-is', () => {
+  // The real validator, not a copy of its rules: this is what the loader runs at
+  // boot, so a manifest change that would break plugin load fails here first.
+  assert.doesNotThrow(() => validateTypertManifest(TYPERT_PACKAGE, TYPERT))
+})
 
 test('the host manifest declares the package, face and empty model the loader requires', () => {
   assert.equal(TYPERT.package, TYPERT_PACKAGE)
