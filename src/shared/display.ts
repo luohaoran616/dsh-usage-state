@@ -36,7 +36,13 @@ export type StatusSegment =
   | { kind: 'label'; text: string; stale?: boolean }
   | { kind: 'balance'; amount: string; currency: string }
   | { kind: 'window'; windowId: string; percent: string; severity: Severity; resetsAt?: number; bar?: string }
-  | { kind: 'state'; state: 'loading' | 'unconfigured' | 'unsupported' | 'needs-endpoint' | 'error'; errorKind?: SnapshotError['kind'] }
+  | {
+      kind: 'state'
+      state: 'loading' | 'unconfigured' | 'unsupported' | 'needs-endpoint' | 'error'
+      errorKind?: SnapshotError['kind']
+      /** Raw provider/network text, for the tooltip — the label stays localized. */
+      errorDetail?: string
+    }
 
 const CURRENCY_SYMBOLS: Record<string, string> = { CNY: '¥', USD: '$' }
 
@@ -116,7 +122,14 @@ export function describeStatus(input: StatusInput): StatusSegment[] {
   if (snapshot.balances.length === 0 && snapshot.windows.length === 0) {
     return [
       label,
-      snapshot.error === undefined ? { kind: 'state', state: 'loading' } : { kind: 'state', state: 'error', errorKind: snapshot.error.kind },
+      snapshot.error === undefined
+        ? { kind: 'state', state: 'loading' }
+        : {
+            kind: 'state',
+            state: 'error',
+            errorKind: snapshot.error.kind,
+            ...(snapshot.error.detail === undefined ? {} : { errorDetail: snapshot.error.detail }),
+          },
     ]
   }
 

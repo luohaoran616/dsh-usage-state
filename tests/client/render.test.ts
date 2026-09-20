@@ -299,6 +299,34 @@ test('the settings page shows one row per provider with its models and resolved 
   assert.match(html, /Advanced/)
 })
 
+test('the settings page shows why a reading failed, not just that it did', () => {
+  const html = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [{ provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek V4 Flash' }],
+        snapshots: {
+          'deepseek:api': {
+            sourceId: 'deepseek',
+            mode: 'api',
+            balances: [],
+            windows: [],
+            fetchedAt: 1_000,
+            error: { kind: 'config', detail: 'no credential configured' },
+          },
+        },
+      }),
+      settings: settingsWith(configWith()),
+      credentials: CREDENTIALS,
+    }),
+  )
+
+  assert.match(html, /Missing key or endpoint/)
+  assert.match(html, /no credential configured/)
+})
+
 test('the settings page demands an endpoint for a self-hosted provider', () => {
   const html = renderToStaticMarkup(
     h(SettingsSection, {

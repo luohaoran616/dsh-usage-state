@@ -202,6 +202,8 @@ function ProviderCard(props: {
   catalog: SourceCatalog
   credentials: CredentialsRemoteLike | undefined
   description: CredentialDescription | undefined
+  /** Failure of the last reading for this account, if any. */
+  failure: { kind: string; detail?: string } | undefined
   index: number
   total: number
   onMode: (mode: ProviderMode) => void
@@ -258,6 +260,12 @@ function ProviderCard(props: {
       </div>
 
       <span style={MUTED}>{resolutionLabel(row, props.catalog, t)}</span>
+      {props.failure === undefined ? null : (
+        <span style={MUTED}>
+          ⚠ {t(`error.${props.failure.kind}`)}
+          {props.failure.detail === undefined ? '' : ` — ${props.failure.detail}`}
+        </span>
+      )}
       <span style={MUTED}>
         {modelNames.length === 0 ? t('noModels') : t('modelsPrefix', { list: `${listed}${suffix}` })}
       </span>
@@ -392,6 +400,7 @@ export function SettingsSection(props: SettingsSectionProps) {
             catalog={state.catalog}
             credentials={props.credentials}
             description={row.resolution.key === undefined ? undefined : state.credentials[row.resolution.key]}
+            failure={row.resolution.key === undefined ? undefined : state.snapshots[row.resolution.key]?.error}
             index={index}
             total={rows.length}
             onMode={mode => write(['providers'], setProviderMode(config.providers, row.provider, mode))}

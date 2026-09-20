@@ -77,12 +77,16 @@ function renderPart(part: StatusPart, t: Translate, key: number) {
           {part.bar === undefined ? '' : ` ${part.bar}`}
         </span>
       )
-    case 'state':
+    case 'state': {
+      const label = part.errorKind === undefined ? undefined : t(`error.${part.errorKind}`)
+      const title =
+        label === undefined ? undefined : part.errorDetail === undefined ? label : `${label}: ${part.errorDetail}`
       return (
-        <span key={key} style={LABEL_STYLE} title={part.errorKind === undefined ? undefined : t(`error.${part.errorKind}`)}>
+        <span key={key} style={LABEL_STYLE} title={title}>
           {part.text}
         </span>
       )
+    }
   }
 }
 

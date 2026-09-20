@@ -123,7 +123,8 @@ test('describeStatus surfaces an error when there is nothing to fall back on', (
 
   assert.deepEqual(segments, [
     { kind: 'label', text: 'DeepSeek' },
-    { kind: 'state', state: 'error', errorKind: 'auth' },
+    // The raw provider text rides along for the tooltip; the label stays localized.
+    { kind: 'state', state: 'error', errorKind: 'auth', errorDetail: 'HTTP 401' },
   ])
 })
 

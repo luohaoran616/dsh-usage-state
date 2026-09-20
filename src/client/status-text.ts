@@ -25,6 +25,7 @@ export type StatusPart =
       state: 'loading' | 'unconfigured' | 'unsupported' | 'needs-endpoint' | 'error'
       text: string
       errorKind?: string
+      errorDetail?: string
     }
 
 /** Visual separator between the parts of one status line. */
@@ -66,6 +67,7 @@ export function statusParts(input: { segments: readonly StatusSegment[]; t: Tran
           state: segment.state,
           text: t(`state.${segment.state}` as UsageStateKey),
           ...(segment.errorKind === undefined ? {} : { errorKind: segment.errorKind }),
+          ...(segment.errorDetail === undefined ? {} : { errorDetail: segment.errorDetail }),
         })
         break
     }
