@@ -1,0 +1,7 @@
+# Mount layer contributed by this plugin.
+#
+# `dsh plugin add` appends this package to the profile's `dsh.profile.bundles`,
+# which applies this patch on boot; the row id only has to be unique.
+- insert:
+    - id: usage-state
+      name: dsh-usage-state
