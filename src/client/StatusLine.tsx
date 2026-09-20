@@ -185,7 +185,7 @@ export function StatusLine(props: StatusLineProps) {
         : null}
       {parts.map((part, index) => (
         <Fragment key={index}>
-          {index > 0 || compact ? (
+          {index > 0 ? (
             <span style={SEPARATOR_STYLE} aria-hidden="true">
               {SEPARATOR}
             </span>
