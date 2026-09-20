@@ -33,6 +33,17 @@ function fetchStub(
 
 const BALANCE_BODY = { is_available: true, balance_infos: [{ currency: 'CNY', total_balance: '66.28' }] }
 
+/** A minimal monitor payload for the mirror tests. */
+const MONITOR_BODY = {
+  success: true,
+  data: {
+    limits: [
+      { type: 'TOKENS_LIMIT', unit: 3, number: 5, percentage: 42 },
+      { type: 'TOKENS_LIMIT', unit: 6, number: 1, percentage: 18 },
+    ],
+  },
+}
+
 test('readUsage performs the request the adapter describes and parses the payload', async () => {
   const { fetch, calls } = fetchStub(() => ({ ok: true, status: 200, body: BALANCE_BODY }))
 
@@ -124,4 +135,74 @@ test('readUsage surfaces a configuration problem without touching the network', 
     (error: unknown) => error instanceof SourceError && error.kind === 'config',
   )
   assert.equal(calls.length, 0)
+})
+
+test('readUsage falls through to a mirror endpoint when the primary rejects the key', async () => {
+  const { zai } = await import('../../src/host/sources/zai.ts')
+  const urls: string[] = []
+  const fetch: FetchLike = async url => {
+    urls.push(url)
+    // The China host answers a global key with an authentication envelope.
+    if (url.includes('open.bigmodel.cn')) {
+      return { ok: true, status: 200, json: async () => ({ code: 1000, msg: '身份验证失败。', success: false }) }
+    }
+    return { ok: true, status: 200, json: async () => MONITOR_BODY }
+  }
+
+  const reading = await readUsage({ source: zai, mode: 'coding-plan', apiKey: 'k' }, { fetch })
+
+  assert.deepEqual(urls, [
+    'https://open.bigmodel.cn/api/monitor/usage/quota/limit',
+    'https://api.z.ai/api/monitor/usage/quota/limit',
+  ])
+  assert.deepEqual(reading.windows.map(window => window.id), ['5h', '7d'])
+})
+
+test('readUsage reports an answered failure over an unreachable one', async () => {
+  const { zai } = await import('../../src/host/sources/zai.ts')
+  let call = 0
+  const fetch: FetchLike = async () => {
+    call += 1
+    if (call === 1) throw new TypeError('fetch failed')
+    return { ok: true, status: 200, json: async () => ({ code: 1000, msg: 'Authentication Failed', success: false }) }
+  }
+
+  await assert.rejects(
+    () => readUsage({ source: zai, mode: 'coding-plan', apiKey: 'k' }, { fetch }),
+    (error: unknown) => error instanceof SourceError && error.kind === 'auth' && error.message === 'Authentication Failed',
+  )
+})
+
+test('readUsage does not fall through when the user pinned the endpoint', async () => {
+  const { zai } = await import('../../src/host/sources/zai.ts')
+  const urls: string[] = []
+  const fetch: FetchLike = async url => {
+    urls.push(url)
+    return { ok: true, status: 200, json: async () => ({ code: 1000, msg: 'Authentication Failed', success: false }) }
+  }
+
+  await assert.rejects(() =>
+    readUsage(
+      { source: zai, mode: 'coding-plan', apiKey: 'k', baseUrl: 'https://api.z.ai', pinnedBaseUrl: true },
+      { fetch },
+    ),
+  )
+  assert.deepEqual(urls, ['https://api.z.ai/api/monitor/usage/quota/limit'])
+})
+
+test('a provider-declared endpoint is used first, with the mirror still available', async () => {
+  const { zai } = await import('../../src/host/sources/zai.ts')
+  const urls: string[] = []
+  const fetch: FetchLike = async url => {
+    urls.push(url)
+    return { ok: true, status: 200, json: async () => ({ code: 1000, msg: 'Authentication Failed', success: false }) }
+  }
+
+  await assert.rejects(() =>
+    readUsage({ source: zai, mode: 'coding-plan', apiKey: 'k', baseUrl: 'https://api.z.ai' }, { fetch }),
+  )
+  assert.deepEqual(urls, [
+    'https://api.z.ai/api/monitor/usage/quota/limit',
+    'https://open.bigmodel.cn/api/monitor/usage/quota/limit',
+  ])
 })

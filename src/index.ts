@@ -187,8 +187,12 @@ export function createUsageState(ctx: PluginContextLike, deps: UsageStateDeps = 
         if (source === undefined) return undefined
         const resolved = await resolveApiKey(source, target.mode, optionsFor(target), lookup)
         if (resolved === undefined) return undefined
-        const baseUrl = config.sources[target.sourceId]?.baseUrl
-        return baseUrl === undefined ? resolved : { ...resolved, baseUrl }
+        // Precedence: this plugin's own setting, then the endpoint the DSH provider
+        // profile declares, then whatever the adapter defaults to.
+        const pinnedBaseUrl = config.sources[target.sourceId]?.baseUrl
+        const baseUrl = pinnedBaseUrl ?? target.baseUrl
+        if (baseUrl === undefined) return resolved
+        return { ...resolved, baseUrl, ...(pinnedBaseUrl === undefined ? {} : { baseUrlPinned: true }) }
       },
     },
     read: createTargetReader({ fetch: fetchImpl }),

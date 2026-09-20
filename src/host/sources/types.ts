@@ -25,8 +25,10 @@ export interface UsageRequest {
 export interface RequestInput {
   mode: UsageMode
   apiKey: string
-  /** User-supplied endpoint override (self-hosted gateways). */
+  /** Endpoint override: the plugin's own setting, or the provider's declared host. */
   baseUrl?: string
+  /** True when the endpoint is the user's explicit choice, not a suggestion. */
+  pinnedBaseUrl?: boolean
 }
 
 /**
@@ -55,6 +57,16 @@ export interface UsageSource {
   /** False for keyless sources; defaults to true. */
   requiresApiKey?: boolean
   request(input: RequestInput): UsageRequest
+  /**
+   * Mirror endpoints, tried in order when the primary one fails.
+   *
+   * Several of these providers are regional (z.ai global vs open.bigmodel.cn
+   * China) and answer a wrong-region key with an authentication error rather than
+   * a redirect, so a single hard-coded host is wrong for half the users. Adapters
+   * that have mirrors declare them here and ignore `input.baseUrl` when the user
+   * has explicitly chosen an endpoint.
+   */
+  fallbackRequests?(input: RequestInput): readonly UsageRequest[]
   /** Pure parser: raw JSON payload -> normalized reading. Throws `SourceError`. */
   parse(payload: unknown, mode: UsageMode): UsageReading
 }

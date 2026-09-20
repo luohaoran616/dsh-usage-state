@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { DEFAULT_CONFIG, suggestSourceId } from '../../src/shared/config.ts'
+import { DEFAULT_CONFIG, normalizeConfig, suggestSourceId } from '../../src/shared/config.ts'
 import { ALL_SOURCES, findSource } from '../../src/host/sources/index.ts'
 import { resolveTargets, targetKey } from '../../src/host/targets.ts'
 import type { UsageStateConfig } from '../../src/shared/config.ts'
@@ -81,6 +81,18 @@ test('resolveTargets refuses a mode the source cannot serve', () => {
   )
 
   assert.deepEqual(targets, [])
+})
+
+test('resolveTargets carries the endpoint a provider declares', () => {
+  // Provider-shaped config, so the declared endpoint has somewhere to land.
+  const config = normalizeConfig({ providers: { 'zai-cn': { mode: 'coding-plan' } } })
+  const targets = resolveTargets(config, {
+    endpointHints: { 'zai-cn': 'https://api.z.ai/api/paas/v4' },
+  })
+
+  assert.deepEqual(targets, [
+    { key: 'zai:coding-plan', sourceId: 'zai', mode: 'coding-plan', baseUrl: 'https://api.z.ai' },
+  ])
 })
 
 test('resolveTargets deduplicates models that share one account-level reading', () => {

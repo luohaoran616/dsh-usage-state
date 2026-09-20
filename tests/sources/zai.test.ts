@@ -36,21 +36,62 @@ const monitorPayload = {
   },
 }
 
-test('zai offers coding-plan mode only', () => {
+test('zai offers coding-plan mode only and defaults to the China host', () => {
   assert.deepEqual([...zai.modes], ['coding-plan'])
-  assert.equal(zai.defaultBaseUrl('coding-plan'), 'https://api.z.ai')
+  assert.equal(zai.defaultBaseUrl('coding-plan'), 'https://open.bigmodel.cn')
 })
 
-test('zai builds an authenticated monitor request and honours a mirror override', () => {
+test('zai builds an authenticated monitor request and honours an explicit endpoint', () => {
   assert.equal(
     zai.request({ mode: 'coding-plan', apiKey: 'k' }).url,
-    'https://api.z.ai/api/monitor/usage/quota/limit',
-  )
-  assert.equal(
-    zai.request({ mode: 'coding-plan', apiKey: 'k', baseUrl: 'https://open.bigmodel.cn/' }).url,
     'https://open.bigmodel.cn/api/monitor/usage/quota/limit',
   )
+  assert.equal(
+    zai.request({ mode: 'coding-plan', apiKey: 'k', baseUrl: 'https://api.z.ai/' }).url,
+    'https://api.z.ai/api/monitor/usage/quota/limit',
+  )
   assert.equal(zai.request({ mode: 'coding-plan', apiKey: 'k' }).headers.authorization, 'Bearer k')
+})
+
+test('zai mirrors the other region, and stays quiet when the user pinned an endpoint', () => {
+  const fallbacks = zai.fallbackRequests?.({ mode: 'coding-plan', apiKey: 'k' }) ?? []
+
+  assert.deepEqual(fallbacks.map(request => request.url), ['https://api.z.ai/api/monitor/usage/quota/limit'])
+  assert.equal(fallbacks[0]?.headers.authorization, 'Bearer k')
+
+  // A declared (but not pinned) host still gets a mirror...
+  assert.deepEqual(
+    zai.fallbackRequests?.({ mode: 'coding-plan', apiKey: 'k', baseUrl: 'https://api.z.ai' })?.map(request => request.url),
+    ['https://open.bigmodel.cn/api/monitor/usage/quota/limit'],
+  )
+  // ...while an explicit choice does not.
+  assert.deepEqual(
+    zai.fallbackRequests?.({ mode: 'coding-plan', apiKey: 'k', baseUrl: 'https://api.z.ai', pinnedBaseUrl: true }),
+    [],
+  )
+})
+
+test('zai reports an authentication failure instead of "nothing to parse"', () => {
+  // The real response: HTTP 200 with a failure envelope (verified against the API).
+  assert.throws(
+    () => zai.parse({ code: 1000, msg: '身份验证失败。', success: false }, 'coding-plan'),
+    (error: unknown) => error instanceof SourceError && error.kind === 'auth' && error.message === '身份验证失败。',
+  )
+  assert.throws(
+    () => zai.parse({ error: { code: '1000', message: 'Authentication Failed' } }, 'coding-plan'),
+    (error: unknown) => error instanceof SourceError && error.kind === 'auth' && error.message === 'Authentication Failed',
+  )
+})
+
+test('zai reports other failure envelopes as endpoint errors', () => {
+  assert.throws(
+    () => zai.parse({ code: 1001, msg: 'rate limited', success: false }, 'coding-plan'),
+    (error: unknown) => error instanceof SourceError && error.kind === 'http' && error.message === 'rate limited',
+  )
+  assert.throws(
+    () => zai.parse({ code: 1002, success: false }, 'coding-plan'),
+    (error: unknown) => error instanceof SourceError && error.kind === 'http' && error.message === 'error 1002',
+  )
 })
 
 test('zai maps unit 3 to the 5h window and unit 6 to the weekly window', () => {

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { DEFAULT_CONFIG, normalizeConfig, type UsageStateConfig } from '../../src/shared/config.ts'
-import { orderProviders, resolveProvider } from '../../src/shared/providers.ts'
+import { orderProviders, originOf, resolveProvider } from '../../src/shared/providers.ts'
 import type { SourceCatalog } from '../../src/shared/display.ts'
 
 const CATALOG: SourceCatalog = [
@@ -113,12 +113,13 @@ test('an explicit choice is reported as configured and keeps its overrides', () 
     mode: 'coding-plan',
     reason: 'configured',
     baseUrl: 'https://open.bigmodel.cn',
+    baseUrlPinned: true,
     apiKeyRef: 'GLM_KEY',
     key: 'zai:coding-plan',
   })
 })
 
-test('the endpoint declared by the provider helps pick the data source', () => {
+test('the endpoint declared by the provider picks the data source and is used for real', () => {
   const resolution = resolveProvider({
     provider: 'my-relay',
     config: DEFAULT_CONFIG,
@@ -128,6 +129,17 @@ test('the endpoint declared by the provider helps pick the data source', () => {
 
   assert.equal(resolution.sourceId, 'zai')
   assert.equal(resolution.key, 'zai:coding-plan')
+  // Only the origin is usable: adapters append their own path to it.
+  assert.equal(resolution.baseUrl, 'https://open.bigmodel.cn')
+  assert.equal(resolution.baseUrlPinned, undefined, 'a declared host is a hint, not a pin')
+})
+
+test('originOf understands API bases and refuses junk', () => {
+  assert.equal(originOf('https://api.z.ai/api/paas/v4'), 'https://api.z.ai')
+  assert.equal(originOf(' https://open.bigmodel.cn/ '), 'https://open.bigmodel.cn')
+  assert.equal(originOf('http://127.0.0.1:8080/v1'), 'http://127.0.0.1:8080')
+  assert.equal(originOf('not a url'), undefined)
+  assert.equal(originOf(undefined), undefined)
 })
 
 test('hiding a provider removes it from every status line', () => {

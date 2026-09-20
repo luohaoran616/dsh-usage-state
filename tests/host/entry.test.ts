@@ -225,3 +225,37 @@ test('apply() wires the real host context without a fetch override', () => {
   assert.doesNotThrow(() => createUsageState(host.ctx, { credentialFallback: false }))
   assert.ok(host.provided.get('usageState') !== undefined)
 })
+
+test('a provider that declares a base URL is polled at that host', async () => {
+  const host = contextStub({
+    settings: {
+      'usage-state': { providers: { 'zai-coding': { mode: 'coding-plan' } } },
+      // Exactly how a DSH provider profile declares its API base.
+      'llm-pi-ai': { providers: { 'zai-coding': { apiKeyEnv: 'ZAI_KEY', baseURL: 'https://api.z.ai/api/paas/v4' } } },
+    },
+    credentials: { ZAI_KEY: 'sk-zai' },
+  })
+  const urls: string[] = []
+  const fetch: FetchLike = async url => {
+    urls.push(url)
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          limits: [
+            { type: 'TOKENS_LIMIT', unit: 3, number: 5, percentage: 42 },
+            { type: 'TOKENS_LIMIT', unit: 6, number: 1, percentage: 18 },
+          ],
+        },
+      }),
+    }
+  }
+
+  const service = createUsageState(host.ctx, { fetch, now: host.time, credentialFallback: false })
+  const state = await service.getState(false)
+
+  assert.deepEqual(urls, ['https://api.z.ai/api/monitor/usage/quota/limit'])
+  assert.deepEqual(state.snapshots['zai:coding-plan']?.windows.map(window => window.id), ['5h', '7d'])
+})

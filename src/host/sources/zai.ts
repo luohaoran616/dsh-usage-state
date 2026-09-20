@@ -2,7 +2,14 @@ import type { QuotaWindow, UsageMode, UsageReading } from '../../shared/types.ts
 import { clampPercent, normalizeBaseUrl, normalizePercent, normalizeResetAt, toFiniteNumber } from './normalize.ts'
 import { SourceError, type RequestInput, type UsageRequest, type UsageSource } from './types.ts'
 
-const DEFAULT_BASE_URL = 'https://api.z.ai'
+/**
+ * GLM coding plans are regional and the key only works on its own region's host:
+ * a China key answers `身份验证失败` on the global host and vice versa, with HTTP
+ * 200 rather than a redirect. China is the primary because that is where the
+ * coding plan is sold; the global host is the mirror.
+ */
+const CN_BASE_URL = 'https://open.bigmodel.cn'
+const GLOBAL_BASE_URL = 'https://api.z.ai'
 const QUOTA_PATH = '/api/monitor/usage/quota/limit'
 
 /** Display order for the windows we know; anything else keeps its insertion order after these. */
@@ -134,6 +141,24 @@ function parseFlatWindows(data: Record<string, unknown>): QuotaWindow[] | undefi
   return found.size > 0 ? sortWindows(found.values()) : undefined
 }
 
+/** Recognise the error envelopes these endpoints return with HTTP 200. */
+function errorEnvelope(root: Record<string, unknown>): { kind: 'auth' | 'http'; message: string } | undefined {
+  const nested = asRecord(root.error)
+  const rawCode = toFiniteNumber(root.code) ?? toFiniteNumber(nested?.code)
+  const rawMessage =
+    (typeof root.msg === 'string' && root.msg) ||
+    (typeof root.message === 'string' && root.message) ||
+    (typeof nested?.message === 'string' && nested.message) ||
+    ''
+
+  const failed = root.success === false || nested !== undefined
+  if (!failed) return undefined
+
+  const message = rawMessage.trim() === '' ? `error ${rawCode ?? 'unknown'}` : rawMessage.trim()
+  // 1000 is the authentication failure code on both hosts.
+  return { kind: rawCode === 1000 ? 'auth' : 'http', message }
+}
+
 function sortWindows(windows: Iterable<QuotaWindow>): QuotaWindow[] {
   return [...windows].sort((a, b) => (WINDOW_RANK[a.id] ?? 99) - (WINDOW_RANK[b.id] ?? 99))
 }
@@ -144,27 +169,49 @@ function sortWindows(windows: Iterable<QuotaWindow>): QuotaWindow[] {
  * as fallbacks because the endpoint is community-reverse-engineered and has already
  * changed shape once.
  */
+function quotaRequest(base: string, apiKey: string): UsageRequest {
+  return {
+    url: `${base}${QUOTA_PATH}`,
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      accept: 'application/json',
+    },
+  }
+}
+
 export const zai: UsageSource = {
   id: 'zai',
   displayName: 'z.ai / GLM',
   modes: ['coding-plan'],
   credentialRefs: () => ['ZAI_API_KEY', 'GLM_API_KEY', 'ZHIPU_API_KEY'],
-  defaultBaseUrl: () => DEFAULT_BASE_URL,
+  defaultBaseUrl: () => CN_BASE_URL,
 
   request(input: RequestInput): UsageRequest {
-    const base = normalizeBaseUrl(input.baseUrl) ?? DEFAULT_BASE_URL
-    return {
-      url: `${base}${QUOTA_PATH}`,
-      headers: {
-        authorization: `Bearer ${input.apiKey}`,
-        accept: 'application/json',
-      },
-    }
+    return quotaRequest(normalizeBaseUrl(input.baseUrl) ?? CN_BASE_URL, input.apiKey)
+  },
+
+  /**
+   * Try the other region unless the user pinned an endpoint themselves: a declared
+   * host is a strong hint, but a wrong region guess is exactly what the mirror is
+   * there to survive.
+   */
+  fallbackRequests(input: RequestInput): readonly UsageRequest[] {
+    if (input.pinnedBaseUrl === true) return []
+    const primary = normalizeBaseUrl(input.baseUrl) ?? CN_BASE_URL
+    const mirror = primary === GLOBAL_BASE_URL ? CN_BASE_URL : GLOBAL_BASE_URL
+    return [quotaRequest(mirror, input.apiKey)]
   },
 
   parse(payload: unknown, _mode: UsageMode): UsageReading {
     const root = asRecord(payload)
     if (root === undefined) throw new SourceError('parse', 'z.ai quota response is not a JSON object')
+
+    // These endpoints report failures inside an HTTP 200 body:
+    //   { code: 1000, msg: '身份验证失败。', success: false }
+    //   { error: { code: '1000', message: 'Authentication Failed' } }
+    // Reporting that as "could not be parsed" hides the actual problem.
+    const failure = errorEnvelope(root)
+    if (failure !== undefined) throw new SourceError(failure.kind, failure.message)
 
     const windows = parseLimits(root) ?? parsePlans(root) ?? parseFlatWindows(root)
     if (windows === undefined || windows.length === 0) {

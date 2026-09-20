@@ -11,6 +11,10 @@ export interface UsageTarget {
   key: string
   sourceId: string
   mode: UsageMode
+  /** Endpoint override: the plugin's own setting, else the provider's declared origin. */
+  baseUrl?: string
+  /** True when the endpoint is the user's explicit choice, so no mirror is tried. */
+  baseUrlPinned?: boolean
 }
 
 export function targetKey(sourceId: string, mode: UsageMode): string {
@@ -46,13 +50,21 @@ export function resolveTargets(
   const targets: UsageTarget[] = []
   const seen = new Set<string>()
 
-  const push = (sourceId: string, mode: UsageMode): void => {
+  const push = (sourceId: string, mode: UsageMode, endpoint?: { baseUrl?: string; pinned?: boolean }): void => {
     const source = sources.find(candidate => candidate.id === sourceId)
     if (source === undefined || !source.modes.includes(mode)) return
     const key = targetKey(sourceId, mode)
+    // Account-level: the first provider that maps here owns the reading, so a
+    // second provider of the same source cannot silently change the endpoint.
     if (seen.has(key)) return
     seen.add(key)
-    targets.push({ key, sourceId, mode })
+    targets.push({
+      key,
+      sourceId,
+      mode,
+      ...(endpoint?.baseUrl === undefined ? {} : { baseUrl: endpoint.baseUrl }),
+      ...(endpoint?.pinned === true ? { baseUrlPinned: true } : {}),
+    })
   }
 
   // Legacy per-model entries first: an older document's explicit choices still win.
@@ -69,7 +81,12 @@ export function resolveTargets(
       catalog,
       ...(options.endpointHints?.[provider] === undefined ? {} : { endpointHint: options.endpointHints[provider] }),
     })
-    if (resolution.sourceId !== null && resolution.mode !== null) push(resolution.sourceId, resolution.mode)
+    if (resolution.sourceId !== null && resolution.mode !== null) {
+      push(resolution.sourceId, resolution.mode, {
+        ...(resolution.baseUrl === undefined ? {} : { baseUrl: resolution.baseUrl }),
+        ...(resolution.baseUrlPinned === true ? { pinned: true } : {}),
+      })
+    }
   }
 
   return targets

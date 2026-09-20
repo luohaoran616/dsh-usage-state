@@ -22,8 +22,10 @@ export interface ResolvedTargetCredential {
   apiKey: string
   ref: string
   origin: string
-  /** Endpoint override from settings (regional mirrors, self-hosted gateways). */
+  /** Endpoint override (plugin setting, or the endpoint the provider declares). */
   baseUrl?: string
+  /** True when that endpoint was the user's explicit choice. */
+  baseUrlPinned?: boolean
 }
 
 export interface UsageStateStoreDeps {

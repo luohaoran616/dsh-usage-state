@@ -35,9 +35,26 @@ export interface ProviderResolution {
   mode: UsageMode | null
   reason: ProviderResolutionReason
   baseUrl?: string
+  /** True when the endpoint came from this plugin's own settings (an explicit choice). */
+  baseUrlPinned?: boolean
   apiKeyRef?: string
   /** Snapshot key the browser looks up; present only when sourceId and mode are set. */
   key?: string
+}
+
+/**
+ * The scheme+host of a declared endpoint. A DSH provider profile's `baseURL` is an
+ * *API* base (`https://api.z.ai/api/paas/v4`), while every adapter here appends its
+ * own path to a bare origin, so only the origin is usable as our endpoint.
+ */
+export function originOf(url: string | undefined): string | undefined {
+  if (url === undefined) return undefined
+  try {
+    const parsed = new URL(url.trim())
+    return parsed.origin === 'null' ? undefined : parsed.origin
+  } catch {
+    return undefined
+  }
 }
 
 export interface ResolveProviderInput {
@@ -60,10 +77,14 @@ function withTarget(resolution: ProviderResolution): ProviderResolution {
  */
 export function resolveProvider(input: ResolveProviderInput): ProviderResolution {
   const entry = input.config.providers[input.provider]
-  const baseUrl = entry?.baseUrl
-  const base: Pick<ProviderResolution, 'provider' | 'baseUrl' | 'apiKeyRef'> = {
+  // An endpoint declared by the DSH provider profile is used for real, not merely
+  // as a hint: it is how a user says "my GLM account is the China one".
+  const declared = originOf(input.endpointHint)
+  const baseUrl = entry?.baseUrl ?? declared
+  const base: Pick<ProviderResolution, 'provider' | 'baseUrl' | 'baseUrlPinned' | 'apiKeyRef'> = {
     provider: input.provider,
     ...(baseUrl === undefined ? {} : { baseUrl }),
+    ...(entry?.baseUrl === undefined ? {} : { baseUrlPinned: true }),
     ...(entry?.apiKeyRef === undefined ? {} : { apiKeyRef: entry.apiKeyRef }),
   }
 
