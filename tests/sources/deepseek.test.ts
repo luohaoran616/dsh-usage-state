@@ -18,8 +18,8 @@ const officialPayload = {
 
 test('deepseek declares API mode only (the official API has no coding plan)', () => {
   assert.deepEqual([...deepseek.modes], ['api'])
-  assert.deepEqual([...deepseek.credentialRefs], ['DEEPSEEK_API_KEY'])
-  assert.equal(deepseek.defaultBaseUrl, 'https://api.deepseek.com')
+  assert.deepEqual([...deepseek.credentialRefs('api')], ['DEEPSEEK_API_KEY'])
+  assert.equal(deepseek.defaultBaseUrl('api'), 'https://api.deepseek.com')
 })
 
 test('deepseek builds an authenticated balance request', () => {

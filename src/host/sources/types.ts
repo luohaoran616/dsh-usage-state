@@ -42,10 +42,14 @@ export interface UsageSource {
   displayName: string
   /** Modes this source can serve; a mode absent here is not offered in settings. */
   modes: readonly UsageMode[]
-  /** Credential refs probed in order (see `credentialRef`), e.g. `DEEPSEEK_API_KEY`. */
-  credentialRefs: readonly string[]
-  /** Endpoint used when the user configures no override. */
-  defaultBaseUrl?: string
+  /**
+   * Credential refs probed in order for a mode (see `credentialRef`), e.g.
+   * `DEEPSEEK_API_KEY`. Mode-dependent because one vendor can need different keys
+   * for its pay-as-you-go API and its coding plan.
+   */
+  credentialRefs(mode: UsageMode): readonly string[]
+  /** Endpoint used for a mode when the user configures no override. */
+  defaultBaseUrl(mode: UsageMode): string | undefined
   /** True when the endpoint must be supplied by the user (self-hosted services). */
   requiresBaseUrl?: boolean
   /** False for keyless sources; defaults to true. */

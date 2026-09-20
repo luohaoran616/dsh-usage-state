@@ -148,8 +148,8 @@ export const zai: UsageSource = {
   id: 'zai',
   displayName: 'z.ai / GLM',
   modes: ['coding-plan'],
-  credentialRefs: ['ZAI_API_KEY', 'GLM_API_KEY', 'ZHIPU_API_KEY'],
-  defaultBaseUrl: DEFAULT_BASE_URL,
+  credentialRefs: () => ['ZAI_API_KEY', 'GLM_API_KEY', 'ZHIPU_API_KEY'],
+  defaultBaseUrl: () => DEFAULT_BASE_URL,
 
   request(input: RequestInput): UsageRequest {
     const base = normalizeBaseUrl(input.baseUrl) ?? DEFAULT_BASE_URL

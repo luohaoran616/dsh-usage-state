@@ -38,7 +38,7 @@ const monitorPayload = {
 
 test('zai offers coding-plan mode only', () => {
   assert.deepEqual([...zai.modes], ['coding-plan'])
-  assert.equal(zai.defaultBaseUrl, 'https://api.z.ai')
+  assert.equal(zai.defaultBaseUrl('coding-plan'), 'https://api.z.ai')
 })
 
 test('zai builds an authenticated monitor request and honours a mirror override', () => {

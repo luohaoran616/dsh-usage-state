@@ -43,8 +43,8 @@ export const deepseek: UsageSource = {
   id: 'deepseek',
   displayName: 'DeepSeek',
   modes: ['api'],
-  credentialRefs: ['DEEPSEEK_API_KEY'],
-  defaultBaseUrl: DEFAULT_BASE_URL,
+  credentialRefs: () => ['DEEPSEEK_API_KEY'],
+  defaultBaseUrl: () => DEFAULT_BASE_URL,
 
   request(input: RequestInput): UsageRequest {
     const base = normalizeBaseUrl(input.baseUrl) ?? DEFAULT_BASE_URL
