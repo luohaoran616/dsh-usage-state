@@ -23,18 +23,9 @@ export interface ResolvedApiKey {
   origin: string
 }
 
-export interface CredentialCandidate {
-  ref: string
-  configured: boolean
-  source?: string
-}
+import type { CredentialCandidate, CredentialDescription } from '../shared/rpc.ts'
 
-export interface CredentialDescription {
-  candidates: CredentialCandidate[]
-  configured: boolean
-  ref?: string
-  source?: string
-}
+export type { CredentialCandidate, CredentialDescription }
 
 function clean(ref: string | undefined): string | undefined {
   if (ref === undefined) return undefined
@@ -89,19 +80,18 @@ export async function describeCredentials(
   const candidates: CredentialCandidate[] = []
   let resolvedRef: string | undefined
   let resolvedSource: string | undefined
+  let resolvedWritable: boolean | undefined
 
   for (const ref of orderedCredentialRefs(source, mode, options)) {
     const described = await lookup.describe(ref)
-    if (described.configured) {
-      candidates.push(
-        described.source === undefined ? { ref, configured: true } : { ref, configured: true, source: described.source },
-      )
-      if (resolvedRef === undefined) {
-        resolvedRef = ref
-        resolvedSource = described.source
-      }
-    } else {
-      candidates.push({ ref, configured: false })
+    const candidate: CredentialCandidate = { ref, configured: described.configured, writable: described.writable }
+    if (described.source !== undefined) candidate.source = described.source
+    candidates.push(candidate)
+
+    if (described.configured && resolvedRef === undefined) {
+      resolvedRef = ref
+      resolvedSource = described.source
+      resolvedWritable = described.writable
     }
   }
 
@@ -110,5 +100,6 @@ export async function describeCredentials(
     configured: resolvedRef !== undefined,
     ref: resolvedRef,
     source: resolvedSource,
+    writable: resolvedWritable,
   }
 }

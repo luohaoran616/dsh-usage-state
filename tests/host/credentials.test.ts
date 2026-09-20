@@ -93,12 +93,13 @@ test('describeCredentials lists every candidate with its status and never a valu
 
   assert.deepEqual(described, {
     candidates: [
-      { ref: 'MY_DS_KEY', configured: false },
-      { ref: 'DEEPSEEK_API_KEY', configured: true, source: 'env' },
+      { ref: 'MY_DS_KEY', configured: false, writable: true },
+      { ref: 'DEEPSEEK_API_KEY', configured: true, source: 'env', writable: true },
     ],
     configured: true,
     ref: 'DEEPSEEK_API_KEY',
     source: 'env',
+    writable: true,
   })
   assert.equal(JSON.stringify(described).includes('sk-secret'), false)
 })
@@ -112,4 +113,16 @@ test('describeCredentials reports an unconfigured target when nothing resolves',
     described.candidates.map(candidate => candidate.ref),
     ['KIMI_CODING_API_KEY', 'KIMI_API_KEY', 'MOONSHOT_API_KEY'],
   )
+})
+
+test('an environment-supplied credential is reported as not writable', async () => {
+  const lookup: CredentialLookup = {
+    resolve: async () => ({ value: 'sk-from-env', source: 'env' }),
+    describe: async () => ({ configured: true, source: 'env', writable: false }),
+  }
+
+  const described = await describeCredentials(deepseek, 'api', {}, lookup)
+
+  assert.equal(described.writable, false)
+  assert.deepEqual(described.candidates, [{ ref: 'DEEPSEEK_API_KEY', configured: true, source: 'env', writable: false }])
 })

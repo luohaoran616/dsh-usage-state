@@ -46,6 +46,47 @@ function modeLabel(mode: ModelMode, t: Translate): string {
   return t('modeHidden')
 }
 
+/**
+ * A text field that keeps a local draft and writes once, on blur or Enter.
+ * Committing on every keystroke would mean one settings revision per character.
+ */
+function DraftInput(props: {
+  value: string
+  type?: string
+  placeholder?: string
+  disabled?: boolean
+  width?: string
+  onCommit: (next: string) => void
+}) {
+  const [draft, setDraft] = useState(props.value)
+  const [editing, setEditing] = useState(false)
+  const shown = editing ? draft : props.value
+
+  const commit = () => {
+    setEditing(false)
+    const next = draft.trim()
+    if (next !== props.value.trim()) props.onCommit(next)
+  }
+
+  return (
+    <Input
+      type={props.type ?? 'text'}
+      value={shown}
+      placeholder={props.placeholder}
+      disabled={props.disabled}
+      onChange={event => {
+        setEditing(true)
+        setDraft((event.target as HTMLInputElement).value)
+      }}
+      onBlur={commit}
+      onKeyDown={event => {
+        if ((event as { key?: string }).key === 'Enter') (event.target as HTMLInputElement).blur()
+      }}
+      style={{ maxWidth: props.width ?? '280px' }}
+    />
+  )
+}
+
 /** One credential panel: status, write and clear, all through the platform's credential RPC. */
 function CredentialPanel(props: {
   t: Translate
@@ -260,14 +301,13 @@ export function SettingsSection(props: SettingsSectionProps) {
                 </div>
                 <div style={ROW}>
                   <span style={MUTED}>{t('apiKeyRef')}</span>
-                  <Input
+                  <DraftInput
                     value={override.apiKeyRef ?? ''}
-                    onChange={event => {
-                      const value = (event.target as HTMLInputElement).value.trim()
+                    width="220px"
+                    onCommit={value => {
                       if (value === '') clearField(['sources', sourceId, 'apiKeyRef'])
                       else writeField(['sources', sourceId, 'apiKeyRef'], value)
                     }}
-                    style={{ maxWidth: '220px' }}
                   />
                   <span style={MUTED}>{t('apiKeyRefHint')}</span>
                 </div>
@@ -275,7 +315,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                   t={t}
                   refs={refs}
                   status={status}
-                  writable
+                  writable={status?.writable !== false}
                   credentials={props.credentials}
                   onChanged={() => void props.usageState.refreshCredentials()}
                 />
@@ -289,27 +329,27 @@ export function SettingsSection(props: SettingsSectionProps) {
         <strong>{t('sectionDisplay')}</strong>
         <div style={ROW}>
           <span style={MUTED}>{t('thresholdWarn')}</span>
-          <Input
+          <DraftInput
             type="number"
             value={String(config.display.thresholdWarnPercent)}
-            onChange={event => writeField(['display', 'thresholdWarnPercent'], Number((event.target as HTMLInputElement).value))}
-            style={{ width: '90px' }}
+            width="90px"
+            onCommit={value => writeField(['display', 'thresholdWarnPercent'], Number(value))}
           />
           <span style={MUTED}>{t('thresholdCritical')}</span>
-          <Input
+          <DraftInput
             type="number"
             value={String(config.display.thresholdCriticalPercent)}
-            onChange={event => writeField(['display', 'thresholdCriticalPercent'], Number((event.target as HTMLInputElement).value))}
-            style={{ width: '90px' }}
+            width="90px"
+            onCommit={value => writeField(['display', 'thresholdCriticalPercent'], Number(value))}
           />
         </div>
         <div style={ROW}>
           <span style={MUTED}>{t('intervalMinutes')}</span>
-          <Input
+          <DraftInput
             type="number"
             value={String(config.refresh.intervalMinutes)}
-            onChange={event => writeField(['refresh', 'intervalMinutes'], Number((event.target as HTMLInputElement).value))}
-            style={{ width: '90px' }}
+            width="90px"
+            onCommit={value => writeField(['refresh', 'intervalMinutes'], Number(value))}
           />
         </div>
         <Switch

@@ -67,6 +67,7 @@ const credentialCandidateSchema = z.object({
   ref: z.string(),
   configured: z.boolean(),
   source: z.string().optional(),
+  writable: z.boolean().optional(),
 })
 
 const credentialDescriptionSchema = z.object({
@@ -74,6 +75,7 @@ const credentialDescriptionSchema = z.object({
   configured: z.boolean(),
   ref: z.string().optional(),
   source: z.string().optional(),
+  writable: z.boolean().optional(),
 })
 
 export const usageStateViewSchema = z.object({

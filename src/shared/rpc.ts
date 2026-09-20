@@ -14,6 +14,8 @@ export interface CredentialCandidate {
   ref: string
   configured: boolean
   source?: string
+  /** False when an inherited environment variable shadows the stored value. */
+  writable?: boolean
 }
 
 export interface CredentialDescription {
@@ -21,6 +23,8 @@ export interface CredentialDescription {
   configured: boolean
   ref?: string
   source?: string
+  /** Whether the resolved ref could be written from the settings page. */
+  writable?: boolean
 }
 
 export interface UsageStateView {
