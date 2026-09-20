@@ -117,7 +117,7 @@
 
 **已识别但尚未实现**（讨论见 `design-consensus.md` §13）：
 
-5. **回合行的"固定值 + 较上一回合 Δ"**——目前 turnTail 与 dock 显示同一份"最新读数"，因此老回合下方显示的是当前值而不是当时的值。方案已定（C2+D），但持久化方式待定：session log（投影）还是插件自有文件；前置实验是"外部插件事件能否带上 `ignorable` 标记"。
+5. **回合行的"固定值 + 较上一回合 Δ"**——目前 turnTail 与 dock 显示同一份"最新读数"，因此老回合下方显示的是当前值而不是当时的值。目标形态已定（固定值 + Δ），**首选** session log + 投影（数据随会话生命周期自动清理、可随会话迁移），但**必须先做可行性实验**（读取侧是否会拒绝"未知类型且不带 `ignorable`"的事件），不行则退回插件自有文件 + LRU/TTL 清理。执行计划见 `plans/` 下的过渡文档（实施完成后删除）。
 6. **点击状态行进入设置页**——设计里写过"可点进设置"，但客户端没有公开的"打开设置面板"服务；(A) 方案改用悬浮提示承载细节，点击行为暂不做。
 7. **`.d.ts` 产物**——`tsdown` 配置 `dts: false`，不产出类型声明（运行时消费不需要）。
 8. **平台兼容性声明**——平台 manifest schema **没有** `compatibility` 字段（`dsh.bundle` / `dsh.client` / `profile` / `configTrees` / `sessionFormatMigration` / `moduleFallback` 才是它认识的）；实测环境是 DSH `0.1.5-rc.2` + Node ≥20（见 `engines`）。cost-meter 的 `dsh.compatibility` / `dshhub` 是市场元数据，未被平台读取。
