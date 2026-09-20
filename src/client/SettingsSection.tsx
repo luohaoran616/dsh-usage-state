@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Button, Input, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
 
-import { configureModel, reorderModels, type ModelRow } from './model-rows.ts'
-import { buildModelRows } from './model-rows.ts'
-import { rowKey } from './model-rows.ts'
+import { buildProviderRows, reorderProviders, setProviderMode, type ProviderRow } from './provider-rows.ts'
 import { useSettingsValue, useStoreState } from './hooks.ts'
 import type { UsageStateClientSource } from './status-source.ts'
 import type { CredentialsRemoteLike, SettingsScopeLike, Translate } from './context.ts'
 import type { CredentialCandidate, CredentialDescription } from '../shared/rpc.ts'
-import type { ModelMode, UsageStateConfig } from '../shared/config.ts'
-import { normalizeConfig } from '../shared/config.ts'
+import { normalizeConfig, type ProviderMode, type UsageStateConfig } from '../shared/config.ts'
+import type { SourceCatalog } from '../shared/display.ts'
+import type { UsageMode } from '../shared/types.ts'
 
 export interface SettingsSectionProps {
   close: () => void
@@ -39,12 +38,18 @@ const ROW = {
 
 const MUTED = { color: 'var(--dsw-alias-label-tertiary)', fontSize: '12px' }
 
-const MODE_ORDER: ModelMode[] = ['api', 'coding-plan', 'hidden']
+/** Models are listed for orientation only, so the line stays short. */
+const MAX_MODELS_SHOWN = 6
 
-function modeLabel(mode: ModelMode, t: Translate): string {
+function modeLabel(mode: ProviderMode, t: Translate): string {
   if (mode === 'api') return t('modeApi')
   if (mode === 'coding-plan') return t('modeCodingPlan')
-  return t('modeHidden')
+  if (mode === 'hidden') return t('modeHidden')
+  return t('modeAuto')
+}
+
+function windowModeLabel(mode: UsageMode, t: Translate): string {
+  return modeLabel(mode, t)
 }
 
 /**
@@ -89,9 +94,9 @@ function DraftInput(props: {
 }
 
 /**
- * One credential panel: which refs are probed, their status, and the write/clear
- * affordances. The candidate names are shown on purpose — the user has to know
- * what to call the environment variable or stored credential.
+ * Credential status and writes for one account. The candidate names are shown on
+ * purpose: the user has to know what to call the environment variable or stored
+ * credential — and when DSH already provides one, there is nothing to do here.
  */
 function CredentialPanel(props: {
   t: Translate
@@ -134,7 +139,10 @@ function CredentialPanel(props: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       <div style={ROW}>
         <span style={MUTED}>{t('credential')}</span>
-        {(candidates.length === 0 ? props.refs.map((ref): CredentialCandidate => ({ ref, configured: false })) : candidates).map(candidate => (
+        {(candidates.length === 0
+          ? props.refs.map((ref): CredentialCandidate => ({ ref, configured: false }))
+          : candidates
+        ).map(candidate => (
           <span key={candidate.ref} style={ROW}>
             <code style={{ fontSize: '11px' }}>{candidate.ref}</code>
             {candidate.configured ? (
@@ -159,7 +167,12 @@ function CredentialPanel(props: {
         <Button size="sm" variant="primary" disabled={draft.trim() === ''} onClick={() => void save()}>
           {t('credentialSave')}
         </Button>
-        <Button size="sm" variant="outline" disabled={configuredRef === undefined || (props.description?.configured !== true)} onClick={() => void clear()}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={configuredRef === undefined || props.description?.configured !== true}
+          onClick={() => void clear()}
+        >
           {t('credentialClear')}
         </Button>
       </div>
@@ -168,17 +181,166 @@ function CredentialPanel(props: {
   )
 }
 
+/** What this row currently resolves to, in one short phrase. */
+function resolutionLabel(row: ProviderRow, catalog: SourceCatalog, t: Translate): string {
+  const { resolution } = row
+  if (resolution.reason === 'hidden') return t('modeHidden')
+  if (resolution.reason === 'needs-endpoint') return t('needsEndpoint')
+  if (resolution.reason === 'unknown-source') return t('unknownSource')
+  if (resolution.reason === 'unsupported' || resolution.mode === null || resolution.sourceId === null) {
+    return t('modeUnsupported')
+  }
+  const sourceLabel = catalog.find(entry => entry.id === resolution.sourceId)?.displayName ?? resolution.sourceId
+  const target = `${sourceLabel} · ${windowModeLabel(resolution.mode, t)}`
+  return resolution.reason === 'auto' ? t('detectedAs', { target }) : t('showsAs', { target })
+}
+
+function ProviderCard(props: {
+  t: Translate
+  row: ProviderRow
+  config: UsageStateConfig
+  catalog: SourceCatalog
+  credentials: CredentialsRemoteLike | undefined
+  description: CredentialDescription | undefined
+  index: number
+  total: number
+  onMode: (mode: ProviderMode) => void
+  onMove: (delta: number) => void
+  onField: (path: string[], value: string) => void
+  onClearField: (path: string[]) => void
+  onCredentialChanged: () => void
+}) {
+  const { t, row } = props
+  const entry = props.config.providers[row.provider]
+  const resolvedSource =
+    row.resolution.sourceId === null ? undefined : props.catalog.find(candidate => candidate.id === row.resolution.sourceId)
+  // Even before a mode is pinned down (a self-hosted source still needs its
+  // endpoint), the user has to know which credential name will be looked for, so
+  // fall back to the source's first mode rather than showing nothing.
+  const refMode = row.resolution.mode ?? resolvedSource?.modes[0]
+  const refs: string[] = refMode === undefined ? [] : [...(resolvedSource?.credentialRefs[refMode] ?? [])]
+
+  const modelNames = row.models.map(model => model.name)
+  const listed = modelNames.slice(0, MAX_MODELS_SHOWN).join(' · ')
+  const suffix = modelNames.length > MAX_MODELS_SHOWN ? ', …' : ''
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '6px' }}>
+      <div style={{ ...ROW, justifyContent: 'space-between' }}>
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <strong>{row.providerName}</strong>
+          {row.providerName === row.provider ? null : <span style={MUTED}> {row.provider}</span>}
+        </span>
+        <span style={ROW}>
+          <Button size="sm" variant="ghost" aria-label={t('moveUp')} disabled={props.index === 0} onClick={() => props.onMove(-1)}>
+            ↑
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={t('moveDown')}
+            disabled={props.index === props.total - 1}
+            onClick={() => props.onMove(1)}
+          >
+            ↓
+          </Button>
+          {row.modes.map(mode => (
+            <Button
+              key={mode}
+              size="sm"
+              variant={row.selected === mode ? 'primary' : 'outline'}
+              onClick={() => props.onMode(mode)}
+            >
+              {modeLabel(mode, t)}
+            </Button>
+          ))}
+        </span>
+      </div>
+
+      <span style={MUTED}>{resolutionLabel(row, props.catalog, t)}</span>
+      <span style={MUTED}>
+        {modelNames.length === 0 ? t('noModels') : t('modelsPrefix', { list: `${listed}${suffix}` })}
+      </span>
+
+      <details>
+        <summary style={{ ...MUTED, cursor: 'pointer' }}>{t('advanced')}</summary>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '8px' }}>
+          <div style={ROW}>
+            <span style={MUTED}>{t('sourceLabel')}</span>
+            <select
+              value={entry?.sourceId ?? ''}
+              onChange={event => {
+                const value = (event.target as HTMLSelectElement).value
+                if (value === '') props.onClearField(['providers', row.provider, 'sourceId'])
+                else props.onField(['providers', row.provider, 'sourceId'], value)
+              }}
+            >
+              <option value="">{t('sourceAuto')}</option>
+              {props.catalog.map(candidate => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={ROW}>
+            <span style={MUTED}>{t('baseUrl')}</span>
+            <DraftInput
+              value={entry?.baseUrl ?? ''}
+              placeholder={
+                row.resolution.mode === null
+                  ? t('baseUrlPlaceholder')
+                  : (resolvedSource?.defaultBaseUrl[row.resolution.mode] ?? t('baseUrlPlaceholder'))
+              }
+              width="320px"
+              onCommit={value => {
+                if (value === '') props.onClearField(['providers', row.provider, 'baseUrl'])
+                else props.onField(['providers', row.provider, 'baseUrl'], value)
+              }}
+            />
+            {resolvedSource?.requiresBaseUrl === true && entry?.baseUrl === undefined ? (
+              <Tag tone="warning">{t('baseUrlRequired')}</Tag>
+            ) : null}
+          </div>
+
+          <div style={ROW}>
+            <span style={MUTED}>{t('apiKeyRef')}</span>
+            <DraftInput
+              value={entry?.apiKeyRef ?? ''}
+              width="220px"
+              onCommit={value => {
+                if (value === '') props.onClearField(['providers', row.provider, 'apiKeyRef'])
+                else props.onField(['providers', row.provider, 'apiKeyRef'], value)
+              }}
+            />
+            <span style={MUTED}>{t('apiKeyRefHint')}</span>
+          </div>
+
+          <CredentialPanel
+            t={t}
+            refs={refs}
+            description={props.description}
+            credentials={props.credentials}
+            onChanged={props.onCredentialChanged}
+          />
+        </div>
+      </details>
+    </div>
+  )
+}
+
 /**
- * The plugin's settings page: models (tri-state + order), the data sources they
- * use, and display preferences. Writes go through the platform settings scope as
- * path ops, so a concurrent edit elsewhere cannot silently clobber other fields.
+ * The plugin's settings page: one row per provider. The reading is account-level,
+ * so per-model configuration was both long and redundant. Everything the plugin
+ * can work out on its own — which source, which mode, which key — is left to
+ * "auto"; only deviations are written to the settings document.
  */
 export function SettingsSection(props: SettingsSectionProps) {
   const { t } = props
   const snapshot = useSettingsValue(props.settings)
   const state = useStoreState(props.usageState)
 
-  // The model list only exists on the host's side of the RPC, so ask for it on mount.
   useEffect(() => {
     void props.usageState.refreshModels()
     void props.usageState.refreshCredentials()
@@ -189,64 +351,14 @@ export function SettingsSection(props: SettingsSectionProps) {
   }
 
   const config = normalizeConfig(snapshot.value ?? {})
-  const rows: ModelRow[] = buildModelRows({ models: state.models, config, catalog: state.catalog })
-  const configured = rows.filter(row => !row.unconfigured)
-  const available = rows.filter(row => row.unconfigured)
+  const rows = buildProviderRows({ models: state.models, config, catalog: state.catalog })
 
-  const writeModels = (models: UsageStateConfig['models']) => {
-    void props.settings.mutate([{ op: 'set', path: ['models'], value: models }])
-  }
-  const writeField = (path: string[], value: unknown) => {
+  const write = (path: string[], value: unknown) => {
     void props.settings.mutate([{ op: 'set', path, value }])
   }
-  const clearField = (path: string[]) => {
+  const clear = (path: string[]) => {
     void props.settings.mutate([{ op: 'unset', path }])
   }
-
-  const setMode = (row: ModelRow, mode: ModelMode) => {
-    writeModels(configureModel(config.models, { provider: row.provider, model: row.model, sourceId: row.sourceId, mode }))
-  }
-  const move = (row: ModelRow, delta: number) => {
-    const next = reorderModels(config.models, row.key, delta)
-    if (next !== undefined) writeModels(next)
-  }
-
-  const renderRow = (row: ModelRow, index: number, list: ModelRow[]) => (
-    <div key={row.key} style={{ ...ROW, justifyContent: 'space-between' }}>
-      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {row.name} <span style={MUTED}>{row.providerName}</span>
-      </span>
-      <span style={ROW}>
-        <Button size="sm" variant="ghost" aria-label={t('moveUp')} disabled={index === 0} onClick={() => move(row, -1)}>
-          ↑
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label={t('moveDown')}
-          disabled={index === list.length - 1}
-          onClick={() => move(row, 1)}
-        >
-          ↓
-        </Button>
-        {MODE_ORDER.filter(mode => row.modes.includes(mode)).map(mode => (
-          <Button
-            key={mode}
-            size="sm"
-            variant={row.mode === mode ? 'primary' : 'outline'}
-            disabled={!row.modes.includes(mode)}
-            title={row.modes.includes(mode) ? undefined : t('modeUnsupported')}
-            onClick={() => setMode(row, mode)}
-          >
-            {modeLabel(mode, t)}
-          </Button>
-        ))}
-      </span>
-    </div>
-  )
-
-  // One panel per data source actually in use, so the page stays short.
-  const usedSources = [...new Set(configured.filter(row => row.mode !== 'hidden' && row.sourceId !== null).map(row => row.sourceId as string))]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '760px' }}>
@@ -268,73 +380,31 @@ export function SettingsSection(props: SettingsSectionProps) {
       </header>
 
       <section style={CARD}>
-        <strong>{t('sectionModels')}</strong>
-        <span style={MUTED}>{t('sectionModelsHint')}</span>
-        {configured.length === 0 && available.length === 0 ? <span style={MUTED}>{t('empty')}</span> : null}
-        {configured.map((row, index) => renderRow(row, index, configured))}
-        {available.length === 0 ? null : (
-          <>
-            <span style={MUTED}>{t('unconfiguredModel')}</span>
-            {available.map((row, index) => renderRow(row, index, available))}
-          </>
-        )}
+        <strong>{t('sectionProviders')}</strong>
+        <span style={MUTED}>{t('sectionProvidersHint')}</span>
+        {rows.length === 0 ? <span style={MUTED}>{t('empty')}</span> : null}
+        {rows.map((row, index) => (
+          <ProviderCard
+            key={row.provider}
+            t={t}
+            row={row}
+            config={config}
+            catalog={state.catalog}
+            credentials={props.credentials}
+            description={row.resolution.key === undefined ? undefined : state.credentials[row.resolution.key]}
+            index={index}
+            total={rows.length}
+            onMode={mode => write(['providers'], setProviderMode(config.providers, row.provider, mode))}
+            onMove={delta => {
+              const next = reorderProviders(config.order, row.provider, delta)
+              if (next !== undefined) write(['order'], next)
+            }}
+            onField={(path, value) => write(path, value)}
+            onClearField={path => clear(path)}
+            onCredentialChanged={() => void props.usageState.refreshCredentials()}
+          />
+        ))}
       </section>
-
-      {usedSources.length === 0 ? null : (
-        <section style={CARD}>
-          <strong>{t('sectionSources')}</strong>
-          {usedSources.map(sourceId => {
-            const entry = state.catalog.find(candidate => candidate.id === sourceId)
-            const override = config.sources[sourceId] ?? {}
-            const mode = configured.find(row => row.sourceId === sourceId && row.mode !== 'hidden')?.mode
-            const description =
-              mode === undefined || mode === 'hidden' ? undefined : state.credentials[`${sourceId}:${mode}`]
-            const refs = (mode === undefined || mode === 'hidden' ? [] : (entry?.credentialRefs[mode] ?? [])) as string[]
-            return (
-              <div key={sourceId} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={ROW}>
-                  <strong style={{ fontSize: '13px' }}>{entry?.displayName ?? sourceId}</strong>
-                  {entry?.requiresBaseUrl === true && override.baseUrl === undefined ? (
-                    <Tag tone="warning">{t('baseUrlRequired')}</Tag>
-                  ) : null}
-                </div>
-                <div style={ROW}>
-                  <span style={MUTED}>{t('baseUrl')}</span>
-                  <Input
-                    value={override.baseUrl ?? ''}
-                    placeholder={entry?.defaultBaseUrl[mode as 'api' | 'coding-plan'] ?? t('baseUrlPlaceholder')}
-                    onChange={event => {
-                      const value = (event.target as HTMLInputElement).value.trim()
-                      if (value === '') clearField(['sources', sourceId, 'baseUrl'])
-                      else writeField(['sources', sourceId, 'baseUrl'], value)
-                    }}
-                    style={{ maxWidth: '320px' }}
-                  />
-                </div>
-                <div style={ROW}>
-                  <span style={MUTED}>{t('apiKeyRef')}</span>
-                  <DraftInput
-                    value={override.apiKeyRef ?? ''}
-                    width="220px"
-                    onCommit={value => {
-                      if (value === '') clearField(['sources', sourceId, 'apiKeyRef'])
-                      else writeField(['sources', sourceId, 'apiKeyRef'], value)
-                    }}
-                  />
-                  <span style={MUTED}>{t('apiKeyRefHint')}</span>
-                </div>
-                <CredentialPanel
-                  t={t}
-                  refs={refs}
-                  description={description}
-                  credentials={props.credentials}
-                  onChanged={() => void props.usageState.refreshCredentials()}
-                />
-              </div>
-            )
-          })}
-        </section>
-      )}
 
       <section style={CARD}>
         <strong>{t('sectionDisplay')}</strong>
@@ -344,14 +414,14 @@ export function SettingsSection(props: SettingsSectionProps) {
             type="number"
             value={String(config.display.thresholdWarnPercent)}
             width="90px"
-            onCommit={value => writeField(['display', 'thresholdWarnPercent'], Number(value))}
+            onCommit={value => write(['display', 'thresholdWarnPercent'], Number(value))}
           />
           <span style={MUTED}>{t('thresholdCritical')}</span>
           <DraftInput
             type="number"
             value={String(config.display.thresholdCriticalPercent)}
             width="90px"
-            onCommit={value => writeField(['display', 'thresholdCriticalPercent'], Number(value))}
+            onCommit={value => write(['display', 'thresholdCriticalPercent'], Number(value))}
           />
         </div>
         <div style={ROW}>
@@ -360,13 +430,13 @@ export function SettingsSection(props: SettingsSectionProps) {
             type="number"
             value={String(config.refresh.intervalMinutes)}
             width="90px"
-            onCommit={value => writeField(['refresh', 'intervalMinutes'], Number(value))}
+            onCommit={value => write(['refresh', 'intervalMinutes'], Number(value))}
           />
         </div>
         <Switch
           checked={config.display.progressBar}
           label={t('progressBar')}
-          onChange={next => writeField(['display', 'progressBar'], next)}
+          onChange={next => write(['display', 'progressBar'], next)}
         />
       </section>
 
@@ -378,5 +448,3 @@ export function SettingsSection(props: SettingsSectionProps) {
     </div>
   )
 }
-
-export { rowKey }

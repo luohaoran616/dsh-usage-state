@@ -8,31 +8,11 @@ import {
   formatCountdown,
   formatPercent,
   progressBar,
-  resolveModelStatus,
   severityOf,
   type SourceCatalog,
 } from '../../src/shared/display.ts'
 import type { UsageStateConfig } from '../../src/shared/config.ts'
 import type { UsageSnapshot } from '../../src/shared/types.ts'
-
-const CATALOG: SourceCatalog = [
-  {
-    id: 'deepseek',
-    displayName: 'DeepSeek',
-    modes: ['api'],
-    requiresBaseUrl: false,
-    defaultBaseUrl: { api: 'https://api.deepseek.com' },
-    credentialRefs: { api: ['DEEPSEEK_API_KEY'] },
-  },
-  {
-    id: 'kimi',
-    displayName: 'Kimi / Moonshot',
-    modes: ['api', 'coding-plan'],
-    requiresBaseUrl: false,
-    defaultBaseUrl: { api: 'https://api.moonshot.cn', 'coding-plan': 'https://api.kimi.com' },
-    credentialRefs: { api: ['MOONSHOT_API_KEY'], 'coding-plan': ['KIMI_CODING_API_KEY'] },
-  },
-]
 
 function configWith(models: UsageStateConfig['models']): UsageStateConfig {
   return { ...DEFAULT_CONFIG, models }
@@ -81,41 +61,6 @@ test('severityOf uses the configured thresholds', () => {
   assert.equal(severityOf(100, DEFAULT_CONFIG.display), 'critical')
 })
 
-test('resolveModelStatus follows the session model through the config to a target', () => {
-  const config = configWith([
-    { provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' },
-    { provider: 'zai', model: 'glm-4.6', sourceId: 'kimi', mode: 'coding-plan' },
-    { provider: 'zai', model: 'glm-hidden', sourceId: 'kimi', mode: 'hidden' },
-    { provider: 'x', model: 'y', sourceId: null, mode: 'api' },
-  ])
-
-  assert.deepEqual(resolveModelStatus(config, 'deepseek-official', 'deepseek-flash', CATALOG), {
-    kind: 'ready',
-    key: 'deepseek:api',
-    sourceId: 'deepseek',
-    mode: 'api',
-  })
-  assert.deepEqual(resolveModelStatus(config, 'zai', 'glm-4.6', CATALOG), {
-    kind: 'ready',
-    key: 'kimi:coding-plan',
-    sourceId: 'kimi',
-    mode: 'coding-plan',
-  })
-  assert.deepEqual(resolveModelStatus(config, 'zai', 'glm-hidden', CATALOG), { kind: 'hidden' })
-  assert.deepEqual(resolveModelStatus(config, 'x', 'y', CATALOG), { kind: 'unconfigured' })
-  assert.deepEqual(resolveModelStatus(config, 'never', 'seen', CATALOG), { kind: 'unconfigured' })
-})
-
-test('resolveModelStatus refuses a mode the chosen source cannot serve', () => {
-  const config = configWith([{ provider: 'p', model: 'm', sourceId: 'deepseek', mode: 'coding-plan' }])
-
-  assert.deepEqual(resolveModelStatus(config, 'p', 'm', CATALOG), {
-    kind: 'unsupported',
-    sourceId: 'deepseek',
-    mode: 'coding-plan',
-  })
-})
-
 const SNAPSHOT: UsageSnapshot = {
   sourceId: 'kimi',
   mode: 'coding-plan',
@@ -150,8 +95,9 @@ test('describeStatus reports the states the UI has to explain', () => {
   assert.deepEqual(describeStatus({ ...base, status: { kind: 'unconfigured' } }), [
     { kind: 'state', state: 'unconfigured' },
   ])
-  assert.deepEqual(describeStatus({ ...base, status: { kind: 'unsupported', sourceId: 'deepseek', mode: 'coding-plan' } }), [
-    { kind: 'state', state: 'unsupported' },
+  assert.deepEqual(describeStatus({ ...base, status: { kind: 'unsupported' } }), [{ kind: 'state', state: 'unsupported' }])
+  assert.deepEqual(describeStatus({ ...base, status: { kind: 'needs-endpoint' } }), [
+    { kind: 'state', state: 'needs-endpoint' },
   ])
   assert.deepEqual(
     describeStatus({ ...base, status: { kind: 'ready', key: 'deepseek:api', sourceId: 'deepseek', mode: 'api' } }),

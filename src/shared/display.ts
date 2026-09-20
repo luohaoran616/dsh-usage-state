@@ -19,11 +19,15 @@ export interface SourceCatalogEntry {
 
 export type SourceCatalog = SourceCatalogEntry[]
 
-/** What the plugin knows about the model a session is currently using. */
+/**
+ * What the plugin can say about the provider behind the session's current model.
+ * `needs-endpoint` is distinct because the user can act on it directly.
+ */
 export type ModelStatus =
   | { kind: 'hidden' }
   | { kind: 'unconfigured' }
-  | { kind: 'unsupported'; sourceId: string; mode: ModelMode }
+  | { kind: 'needs-endpoint' }
+  | { kind: 'unsupported' }
   | { kind: 'ready'; key: string; sourceId: string; mode: UsageMode }
 
 export type Severity = 'normal' | 'warn' | 'critical'
@@ -32,7 +36,7 @@ export type StatusSegment =
   | { kind: 'label'; text: string; stale?: boolean }
   | { kind: 'balance'; amount: string; currency: string }
   | { kind: 'window'; windowId: string; percent: string; severity: Severity; resetsAt?: number; bar?: string }
-  | { kind: 'state'; state: 'loading' | 'unconfigured' | 'unsupported' | 'error'; errorKind?: SnapshotError['kind'] }
+  | { kind: 'state'; state: 'loading' | 'unconfigured' | 'unsupported' | 'needs-endpoint' | 'error'; errorKind?: SnapshotError['kind'] }
 
 const CURRENCY_SYMBOLS: Record<string, string> = { CNY: '¥', USD: '$' }
 
@@ -80,30 +84,6 @@ export function severityOf(usedPercent: number, display: DisplayConfig): Severit
   return 'normal'
 }
 
-/**
- * Which reading belongs to the model a session is using. The user configures
- * models by hand, so an unknown model is "unconfigured" rather than a guess.
- */
-export function resolveModelStatus(
-  config: UsageStateConfig,
-  provider: string,
-  model: string,
-  catalog: SourceCatalog,
-): ModelStatus {
-  const entry = config.models.find(candidate => candidate.provider === provider && candidate.model === model)
-  if (entry === undefined) return { kind: 'unconfigured' }
-  if (entry.mode === 'hidden') return { kind: 'hidden' }
-  if (entry.sourceId === null) return { kind: 'unconfigured' }
-
-  const source = catalog.find(candidate => candidate.id === entry.sourceId)
-  if (source === undefined) return { kind: 'unconfigured' }
-  if (!source.modes.includes(entry.mode)) {
-    return { kind: 'unsupported', sourceId: entry.sourceId, mode: entry.mode }
-  }
-
-  return { kind: 'ready', key: `${entry.sourceId}:${entry.mode}`, sourceId: entry.sourceId, mode: entry.mode }
-}
-
 export interface StatusInput {
   sourceLabel: string
   status: ModelStatus
@@ -124,6 +104,7 @@ export function describeStatus(input: StatusInput): StatusSegment[] {
   const { status, snapshot, display, now } = input
   if (status.kind === 'hidden') return []
   if (status.kind === 'unconfigured') return [{ kind: 'state', state: 'unconfigured' }]
+  if (status.kind === 'needs-endpoint') return [{ kind: 'state', state: 'needs-endpoint' }]
   if (status.kind === 'unsupported') return [{ kind: 'state', state: 'unsupported' }]
 
   const label: StatusSegment = snapshot?.stale === true

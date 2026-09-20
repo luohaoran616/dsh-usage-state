@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 
-import { describeStatus, resolveModelStatus, type ModelStatus, type Severity } from '../shared/display.ts'
+import { describeStatus, type ModelStatus, type Severity } from '../shared/display.ts'
+import { resolveProvider } from '../shared/providers.ts'
 import type { UsageStateConfig } from '../shared/config.ts'
 import type { UsageStateSnapshotSource } from './status-source.ts'
 import { statusParts, SEPARATOR, type StatusPart } from './status-text.ts'
@@ -85,6 +86,26 @@ function renderPart(part: StatusPart, t: Translate, key: number) {
   }
 }
 
+/** Map a provider resolution onto what the line can say about it. */
+function statusOf(resolution: ReturnType<typeof resolveProvider>): ModelStatus {
+  switch (resolution.reason) {
+    case 'hidden':
+      return { kind: 'hidden' }
+    case 'needs-endpoint':
+      return { kind: 'needs-endpoint' }
+    case 'unknown-source':
+    case 'unsupported':
+      return resolution.sourceId === null ? { kind: 'unconfigured' } : { kind: 'unsupported' }
+    case 'auto':
+    case 'configured': {
+      if (resolution.key === undefined || resolution.sourceId === null || resolution.mode === null) {
+        return { kind: 'unconfigured' }
+      }
+      return { kind: 'ready', key: resolution.key, sourceId: resolution.sourceId, mode: resolution.mode }
+    }
+  }
+}
+
 /** One read-only usage line: balance in API mode, 5h/7d quota in coding-plan mode. */
 export function StatusLine(props: StatusLineProps) {
   const t = props.t
@@ -98,7 +119,7 @@ export function StatusLine(props: StatusLineProps) {
   // No model in play yet (a brand-new session): say nothing rather than "not configured".
   if (config === undefined || current === null) return null
 
-  const status: ModelStatus = resolveModelStatus(config, current.provider, current.model, state.catalog)
+  const status: ModelStatus = statusOf(resolveProvider({ provider: current.provider, config, catalog: state.catalog }))
   const snapshot = status.kind === 'ready' ? state.snapshots[status.key] : undefined
   const sourceLabel =
     status.kind === 'ready'

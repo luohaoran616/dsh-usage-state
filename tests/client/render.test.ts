@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { SettingsSection } from '../../src/client/SettingsSection.tsx'
 import { StatusLine } from '../../src/client/StatusLine.tsx'
 import { en } from '../../src/client/locales.ts'
-import { DEFAULT_CONFIG, type UsageStateConfig } from '../../src/shared/config.ts'
+import { normalizeConfig, type ProviderConfigEntry, type UsageStateConfig } from '../../src/shared/config.ts'
 import type { SourceCatalog } from '../../src/shared/display.ts'
 import type { UsageSnapshot } from '../../src/shared/types.ts'
 import type { CredentialsRemoteLike } from '../../src/client/context.ts'
@@ -39,6 +39,14 @@ const CATALOG: SourceCatalog = [
     credentialRefs: { api: ['DEEPSEEK_API_KEY'] },
   },
   {
+    id: 'zai',
+    displayName: 'z.ai / GLM',
+    modes: ['coding-plan'],
+    requiresBaseUrl: false,
+    defaultBaseUrl: { 'coding-plan': 'https://api.z.ai' },
+    credentialRefs: { 'coding-plan': ['ZAI_API_KEY'] },
+  },
+  {
     id: 'sub2api',
     displayName: 'Sub2API',
     modes: ['api', 'coding-plan'],
@@ -48,8 +56,8 @@ const CATALOG: SourceCatalog = [
   },
 ]
 
-function configWith(models: UsageStateConfig['models'], sources: UsageStateConfig['sources'] = {}): UsageStateConfig {
-  return { ...DEFAULT_CONFIG, models, sources }
+function configWith(providers: Record<string, ProviderConfigEntry> = {}): UsageStateConfig {
+  return normalizeConfig({ providers })
 }
 
 function storeWith(input: {
@@ -103,7 +111,7 @@ const CREDENTIALS: CredentialsRemoteLike = {
 }
 
 test('the status line renders a balance for the session model', () => {
-  const config = configWith([{ provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' }])
+  const config = configWith({ 'deepseek-official': { mode: 'api' } })
   const store = storeWith({
     catalog: CATALOG,
     snapshots: {
@@ -134,18 +142,8 @@ test('the status line renders a balance for the session model', () => {
 })
 
 test('the turn-tail variant renders quota windows with severity, countdown and bar', () => {
-  const config = configWith([{ provider: 'zai', model: 'glm-4.6', sourceId: 'zai', mode: 'coding-plan' }])
-  const catalog: SourceCatalog = [
-    ...CATALOG,
-    {
-      id: 'zai',
-      displayName: 'z.ai / GLM',
-      modes: ['coding-plan'],
-      requiresBaseUrl: false,
-      defaultBaseUrl: { 'coding-plan': 'https://api.z.ai' },
-      credentialRefs: { 'coding-plan': ['ZAI_API_KEY'] },
-    },
-  ]
+  const config = configWith({ zai: { mode: 'coding-plan' } })
+  const catalog: SourceCatalog = [...CATALOG]
   const store = storeWith({
     catalog,
     snapshots: {
@@ -183,7 +181,7 @@ test('the turn-tail variant renders quota windows with severity, countdown and b
 })
 
 test('a hidden or unselected model renders nothing at all', () => {
-  const hidden = settingsWith(configWith([{ provider: 'p', model: 'm', sourceId: 'deepseek', mode: 'hidden' }]))
+  const hidden = settingsWith(configWith({ p: { mode: 'hidden' } }))
   const props = {
     t,
     variant: 'dock' as const,
@@ -197,22 +195,36 @@ test('a hidden or unselected model renders nothing at all', () => {
   assert.equal(noSelection, '')
 })
 
-test('an unconfigured model says so instead of showing a number', () => {
+test('a provider nobody can map says so instead of showing a number', () => {
   const html = renderToStaticMarkup(
     h(StatusLine, {
       t,
       variant: 'dock',
       usageState: storeWith({ catalog: CATALOG }),
-      settings: settingsWith(configWith([])),
-      useProjection: projectionOf({ provider: 'new', model: 'unconfigured' }),
+      settings: settingsWith(configWith()),
+      useProjection: projectionOf({ provider: 'mystery', model: 'unconfigured' }),
     }),
   )
 
   assert.match(html, /Not configured/)
 })
 
+test('a self-hosted provider without an endpoint asks for one', () => {
+  const html = renderToStaticMarkup(
+    h(StatusLine, {
+      t,
+      variant: 'dock',
+      usageState: storeWith({ catalog: CATALOG }),
+      settings: settingsWith(configWith()),
+      useProjection: projectionOf({ provider: 'sub2api', model: 'gpt-5' }),
+    }),
+  )
+
+  assert.match(html, /Needs an endpoint first/)
+})
+
 test('a stale reading stays visible and is marked', () => {
-  const config = configWith([{ provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' }])
+  const config = configWith({ 'deepseek-official': { mode: 'api' } })
   const html = renderToStaticMarkup(
     h(StatusLine, {
       t,
@@ -241,15 +253,12 @@ test('a stale reading stays visible and is marked', () => {
   assert.match(html, /\$12\.50/)
 })
 
-test('the settings page lists configured and available models with their modes', () => {
-  const config = configWith([
-    { provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' },
-    { provider: 'sub2api', model: 'gpt-5', sourceId: 'sub2api', mode: 'hidden' },
-  ])
+test('the settings page shows one row per provider with its models and resolved account', () => {
   const store = storeWith({
     catalog: CATALOG,
     models: [
-      { provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek Flash' },
+      { provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek V4 Flash' },
+      { provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
       { provider: 'zai', providerName: 'z.ai / GLM', model: 'glm-4.6', name: 'GLM-4.6' },
     ],
     credentials: {
@@ -268,38 +277,91 @@ test('the settings page lists configured and available models with their modes',
       close: () => undefined,
       t,
       usageState: store,
-      settings: settingsWith(config),
+      settings: settingsWith(configWith()),
       credentials: CREDENTIALS,
     }),
   )
 
   assert.match(html, /Usage state/)
-  assert.match(html, /DeepSeek Flash/)
-  assert.match(html, /GLM-4\.6/) // catalog-only model still listed
+  assert.match(html, /DeepSeek/)
+  // Models are listed once per provider, not once per row of controls.
+  assert.match(html, /Models: DeepSeek V4 Flash · DeepSeek V4 Pro/)
+  assert.match(html, /Detected DeepSeek · API balance/)
+  assert.match(html, /z\.ai \/ GLM/)
+  assert.match(html, /Detected z\.ai \/ GLM · Coding plan/)
+  // Auto is offered everywhere; only the source's own modes otherwise.
+  assert.match(html, /Auto/)
   assert.match(html, /API balance/)
   assert.match(html, /Coding plan/)
   assert.match(html, /Hidden/)
-  assert.match(html, /Move up/)
   assert.match(html, /DEEPSEEK_API_KEY/)
   assert.match(html, /Configured \(env\)/)
+  assert.match(html, /Advanced/)
 })
 
-test('the settings page demands an endpoint for a self-hosted source', () => {
-  const config = configWith([{ provider: 'sub2api', model: 'gpt-5', sourceId: 'sub2api', mode: 'api' }])
+test('the settings page demands an endpoint for a self-hosted provider', () => {
   const html = renderToStaticMarkup(
     h(SettingsSection, {
       close: () => undefined,
       t,
-      usageState: storeWith({ catalog: CATALOG }),
-      settings: settingsWith(config),
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [{ provider: 'sub2api', providerName: 'Sub2API', model: 'gpt-5', name: 'gpt-5' }],
+      }),
+      settings: settingsWith(configWith()),
       credentials: CREDENTIALS,
     }),
   )
 
   assert.match(html, /Sub2API/)
+  assert.match(html, /Needs an endpoint first/)
   assert.match(html, /This data source needs the endpoint of your own instance/)
-  // The page must name the credential it looks for, not just say "not configured".
   assert.match(html, /SUB2API_API_KEY/)
+})
+
+test('a hidden provider is marked as such instead of showing a target', () => {
+  const html = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [{ provider: 'zai', providerName: 'z.ai / GLM', model: 'glm-4.6', name: 'GLM-4.6' }],
+      }),
+      settings: settingsWith(configWith({ zai: { mode: 'hidden' } })),
+      credentials: CREDENTIALS,
+    }),
+  )
+
+  assert.match(html, /Hidden/)
+  assert.doesNotMatch(html, /Detected/)
+})
+
+test('the empty hint only shows when there is nothing to list at all', () => {
+  const withProviders = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [{ provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek V4 Flash' }],
+      }),
+      settings: settingsWith(configWith()),
+      credentials: CREDENTIALS,
+    }),
+  )
+  assert.doesNotMatch(withProviders, /No providers found yet/)
+
+  const withoutProviders = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({ catalog: CATALOG }),
+      settings: settingsWith(configWith()),
+      credentials: CREDENTIALS,
+    }),
+  )
+  assert.match(withoutProviders, /No providers found yet/)
 })
 
 test('the settings page reports an unavailable settings transport instead of rendering controls', () => {
@@ -323,32 +385,4 @@ test('the settings page reports an unavailable settings transport instead of ren
 
   assert.match(html, /does not serve settings/)
   assert.doesNotMatch(html, /API balance/)
-})
-
-test('the empty hint only shows when there is nothing to list at all', () => {
-  const config = configWith([{ provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' }])
-  const withModels = renderToStaticMarkup(
-    h(SettingsSection, {
-      close: () => undefined,
-      t,
-      usageState: storeWith({
-        catalog: CATALOG,
-        models: [{ provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek Flash' }],
-      }),
-      settings: settingsWith(config),
-      credentials: CREDENTIALS,
-    }),
-  )
-  assert.doesNotMatch(withModels, /No models found yet/)
-
-  const withoutModels = renderToStaticMarkup(
-    h(SettingsSection, {
-      close: () => undefined,
-      t,
-      usageState: storeWith({}),
-      settings: settingsWith(configWith([])),
-      credentials: CREDENTIALS,
-    }),
-  )
-  assert.match(withoutModels, /No models found yet/)
 })

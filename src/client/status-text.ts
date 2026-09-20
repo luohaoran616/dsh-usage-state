@@ -20,7 +20,12 @@ export type StatusPart =
   | { kind: 'label'; text: string; stale: boolean }
   | { kind: 'balance'; text: string; currency: string }
   | { kind: 'window'; id: string; text: string; percent: string; severity: 'normal' | 'warn' | 'critical'; bar?: string; countdown?: string }
-  | { kind: 'state'; state: 'loading' | 'unconfigured' | 'unsupported' | 'error'; text: string; errorKind?: string }
+  | {
+      kind: 'state'
+      state: 'loading' | 'unconfigured' | 'unsupported' | 'needs-endpoint' | 'error'
+      text: string
+      errorKind?: string
+    }
 
 /** Visual separator between the parts of one status line. */
 export const SEPARATOR = '·'
