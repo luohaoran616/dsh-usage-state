@@ -48,6 +48,7 @@
 两个位置，**共用同一套数据解析规则**：
 
 1. `conversation.chat.turnTail`（链式插槽）：每个**已完成回合**动作行下方一行；不需要时 `select` 返回 `null` 不渲染。
+   ⚠️ **实现后发现该插槽是"单赢家"的 chain**：平台自带的 `dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此，因此**有产出文件/交付物的回合会被它们抢走，我们的行不显示**。修复方向见 `plans/` 下的过渡文档（改挂 `conversation.chat.assistant-actions` + 只在回合末尾渲染）。
 2. `conversation.composer.dock`：**自己的 id、`order: 1`，紧贴原生统计行正下方另起一行**。原 `StatsPills`（`id: "stats"`）与其悬浮详情弹窗**原样保留**，不做影子替换、不复刻。
 
 几何对齐（照抄原生行，缺变量时优雅退化）：

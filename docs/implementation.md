@@ -73,7 +73,7 @@
 | 密钥写入走平台凭据库 | `client/SettingsSection`（`remote.credentials.set/unset`）+ `writable` 透传 | `render` + `credentials` | 结构 + 单测（本机未真正写过密钥） |
 | 设置命名空间 `usage-state` + 自定义页 | `host/settings.ts` + `client/SettingsSection.tsx` | `settings`(4) / `render`(12) | 真机（页面可用、四态与排序即时生效） |
 | RPC 通道（Typert） | `host/typert.ts` + `host/service.ts` + `client/index.tsx`（`$mount`） | `typert`(8) / `service`(5) / `entry`(10) / `bundle`(6) | 真机 + **平台 `validateTypertManifest`** |
-| 状态行挂两处（dock 兄弟行 + turnTail） | `client/index.tsx` 插槽注册 + `client/StatusLine.tsx` | `render`（SSR） | 真机（两处都确认可见） |
+| 状态行挂两处（dock 兄弟行 + turnTail） | `client/index.tsx` 插槽注册 + `client/StatusLine.tsx` | `render`（SSR） | 真机确认可见，但 **turnTail 存在 chain 冲突缺陷**（见 §6 第 0 条） |
 | 刷新：回合结束 +2s、空闲 5min、最小 60s | `host/refresh.ts`（时钟注入）+ `src/index.ts` | `refresh`(12)（假时钟）/ `entry` | 单测精确覆盖；真机间接（数值随时间变化） |
 | 失败保留旧值 + 陈旧时间 + ⚠ | `refresh.fail` + `display.describeStatus` + `status-text` | `refresh` / `display`(12) / `status-text`(6) / `render` | 真机（早期 `⚠ … Unavailable` 截图）+ 单测 |
 | 悬浮提示 (A) | `status-text` 生成 tooltip + `StatusLine` 用平台 `Tooltip` | `status-text` / `render`（断言 `data-tooltip`） | 真机（用户确认） |
@@ -114,6 +114,12 @@
 2. **Sub2API**——本机没有自建实例；`/v1/usage` 是未文档化接口且字段漂移过，实现按容错处理。
 3. **阈值变色的视觉**——真机读数 12%/59% 未触及阈值；把设置里黄色阈值临时改成 10 即可看到。
 4. **手写密钥写入**——设置页可写，但本机凭据来自环境变量/凭据文件，未实际走一遍写入→生效。
+
+**已知缺陷**（修复方案见 `plans/` 下的过渡文档）：
+
+0. **回合行在有产出/交付物的回合不显示**（真机发现）。
+   `conversation.chat.turnTail` 是 **chain** 插槽（"第一个接受 owner 的 selector 渲染"，每条回合只有一个赢家），而平台自带的 `dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此：任何产出了文件/交付物的回合都会被它们先认领，我们的条目不会被询问 → 该回合没有用量行；没有产出的回合它们返回 `null`，我们才渲染（因此表现为"时有时无"）。
+   插槽内无解（单一赢家、`select` 必须是纯函数、`overlay` 仅 composer 链使用、提高优先级会抢掉别人的产出文件行）；可行方向是改挂 `conversation.chat.assistant-actions`（list 槽、无竞争），并加"只在回合末尾渲染"的过滤以避免多 step 重复。
 
 **已识别但尚未实现**（讨论见 `design-consensus.md` §13）：
 
