@@ -65,8 +65,111 @@ export const DEFAULT_CONFIG: UsageStateConfig = {
   },
 }
 
-const PROVIDER_HINTS: ReadonlyArray<{ sourceId: string; pattern: RegExp }> = [
-  { sourceId: 'deepseek', pattern: /deepseek/ },
+const MODES: readonly ModelMode[] = ['api', 'coding-plan', 'hidden']
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+}
+
+function cleanString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function clampInt(value: unknown, minimum: number, maximum: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.min(maximum, Math.max(minimum, Math.round(value)))
+}
+
+function normalizeModels(value: unknown): ModelConfigEntry[] {
+  if (!Array.isArray(value)) return []
+
+  const models: ModelConfigEntry[] = []
+  const seen = new Set<string>()
+  for (const raw of value) {
+    const entry = asRecord(raw)
+    if (entry === undefined) continue
+
+    const provider = cleanString(entry.provider)
+    const model = cleanString(entry.model)
+    if (provider === '' || model === '') continue
+
+    const identity = `${provider}\u0000${model}`
+    if (seen.has(identity)) continue
+    seen.add(identity)
+
+    const rawMode = cleanString(entry.mode)
+    const mode: ModelMode = MODES.includes(rawMode as ModelMode) ? (rawMode as ModelMode) : 'hidden'
+    const sourceId = cleanString(entry.sourceId)
+
+    models.push({ provider, model, sourceId: sourceId === '' ? null : sourceId, mode })
+  }
+  return models
+}
+
+function normalizeSources(value: unknown): Record<string, SourceConfig> {
+  const root = asRecord(value)
+  if (root === undefined) return {}
+
+  const sources: Record<string, SourceConfig> = {}
+  for (const [id, raw] of Object.entries(root)) {
+    const entry = asRecord(raw)
+    if (entry === undefined) continue
+
+    const config: SourceConfig = {}
+    const apiKeyRef = cleanString(entry.apiKeyRef)
+    if (apiKeyRef !== '') config.apiKeyRef = apiKeyRef
+    const baseUrl = cleanString(entry.baseUrl)
+    if (baseUrl !== '') config.baseUrl = baseUrl
+
+    if (config.apiKeyRef !== undefined || config.baseUrl !== undefined) sources[id] = config
+  }
+  return sources
+}
+
+function normalizeRefresh(value: unknown): RefreshConfig {
+  const root = asRecord(value) ?? {}
+  const defaults = DEFAULT_CONFIG.refresh
+  return {
+    intervalMinutes: clampInt(root.intervalMinutes, 1, 1440, defaults.intervalMinutes),
+    turnEndDelayMs: clampInt(root.turnEndDelayMs, 0, 60_000, defaults.turnEndDelayMs),
+    minIntervalSeconds: clampInt(root.minIntervalSeconds, 0, 3600, defaults.minIntervalSeconds),
+  }
+}
+
+function normalizeDisplay(value: unknown): DisplayConfig {
+  const root = asRecord(value) ?? {}
+  const defaults = DEFAULT_CONFIG.display
+
+  const progressBar = typeof root.progressBar === 'boolean' ? root.progressBar : defaults.progressBar
+  const thresholdWarnPercent = clampInt(root.thresholdWarnPercent, 1, 100, defaults.thresholdWarnPercent)
+  const thresholdCriticalPercent = clampInt(root.thresholdCriticalPercent, 1, 100, defaults.thresholdCriticalPercent)
+
+  // An unordered pair of thresholds cannot color anything sensibly, so fall back
+  // to both defaults rather than silently reinterpreting what the user meant.
+  if (thresholdWarnPercent >= thresholdCriticalPercent) return { ...defaults, progressBar }
+
+  return { thresholdWarnPercent, thresholdCriticalPercent, progressBar }
+}
+
+/**
+ * Turn whatever the hand-editable settings document contains into a usable
+ * config. Deliberately never throws: the settings provider calls the schema
+ * synchronously at registration time, and a dirty section must not block the
+ * plugin from loading. Malformed pieces fall back to defaults instead.
+ */
+export function normalizeConfig(raw: unknown): UsageStateConfig {
+  const root = asRecord(raw) ?? {}
+  return {
+    models: normalizeModels(root.models),
+    sources: normalizeSources(root.sources),
+    refresh: normalizeRefresh(root.refresh),
+    display: normalizeDisplay(root.display),
+  }
+}
+
+const PROVIDER_HINTS: ReadonlyArray<{ sourceId: string; pattern: RegExp }> = [  { sourceId: 'deepseek', pattern: /deepseek/ },
   { sourceId: 'zai', pattern: /(zai|zhipu|bigmodel|glm)/ },
   { sourceId: 'kimi', pattern: /(kimi|moonshot)/ },
   { sourceId: 'sub2api', pattern: /sub-?2-?api/ },
