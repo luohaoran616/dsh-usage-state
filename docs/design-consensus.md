@@ -158,7 +158,7 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
    **代价（需知悉）**：`PROVIDER_HINTS` 的先后顺序成了语义的一部分——`opencode` 必须排在 `deepseek` 之前（否则 `opencode-go-deepseek` 被当成 DeepSeek 账户），而 `sub2api` 必须排在 `opencode` 之前（否则自建网关 `sub2api-opencode` 被当成 OpenCode 账户）。因此 `sub2api-deepseek` 这类同时命中两者的 id 语义随之改变；zai/kimi 被前移到最前，正是为了把这类改变压到最小。
    另：真机上三个窗口读到的都是 `0%`（账户未用），**非零百分比路径与 `status` 非 `ok` 的语义都未验证**。
 
-12. **设置页供应商卡头部：换行 flex → 两列网格**（`SettingsSection.tsx`）
+12. **设置页供应商卡头部：换行 flex → 两列网格**（`dd37b3d`，0.2.3）
    正文（§3）只说了设置页"每行一个供应商"，没规定卡头部怎么排。实现最初用 `ROW`（`flex-wrap: wrap`）+ `justify-content: space-between`，名字块上还带了一对 `overflow:hidden / text-overflow:ellipsis`。
    真机暴露两件事：**其一**，那对省略号是死代码——既没有 `white-space: nowrap`，名字块作为 flex item 又在"先换行、后压缩"的策略下永不被压到溢出，所以一辈子不会触发；**其二**，名字一长整簇控件就被折到第二行左侧：同一页里 `zai-coding-cn` 的按钮贴右、`opencode-go-ds41` 的按钮掉到下一行，对齐随名字长度漂移（用户截图）。
    现决策：头部改为 `display:grid; grid-template-columns: minmax(0,1fr) auto`，名字列 `min-width:0 + overflow:hidden + text-overflow:ellipsis + white-space:nowrap`，控件列 `flex-shrink:0`。**永不换行**，省略号才真正生效；因为 provider id 排在粗体显示名之后，被截断的永远是冗余的那一半，用 `title` 属性兜住全文（不引 `Tooltip`，免得为悬停多包一层 DOM 破坏网格）。共享的 `ROW` 不动：它的 `wrap` 对凭据面板那些行仍然是必要的。
