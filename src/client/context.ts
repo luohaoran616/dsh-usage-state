@@ -79,6 +79,10 @@ export interface RemoteLike {
 
 export interface ModelCatalogLike {
   groups: ReadonlyArray<{ id: string; name: string; models: ReadonlyArray<{ id: string; name: string }> }>
+  /** Provider ids DSH currently has. Absent on hosts that predate this field. */
+  routableProviders?: readonly string[]
+  /** Providers DSH has whose model list could not be loaded. */
+  failures?: ReadonlyArray<{ id: string; name: string; message: string }>
 }
 
 export interface ClientContextLike {

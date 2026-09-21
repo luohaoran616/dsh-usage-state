@@ -1,5 +1,5 @@
 import type { ModelCatalogLike } from './context.ts'
-import type { CatalogModelRow } from './model-rows.ts'
+import type { CatalogModelRow, ProviderRegistry } from './model-rows.ts'
 import type { SourceCatalog } from '../shared/display.ts'
 import type { CredentialDescription, CredentialReport, RemoteResult, UsageStateView } from '../shared/rpc.ts'
 import type { UsageSnapshot } from '../shared/types.ts'
@@ -13,6 +13,12 @@ export interface UsageStateClientState {
   checkedAt: number | undefined
   /** Models DSH knows about, flattened for the settings page. */
   models: CatalogModelRow[]
+  /**
+   * Which providers DSH currently has. `undefined` while the catalog has not loaded
+   * (or when the host does not report one): the settings page then treats the
+   * registry as unknown and keeps every stored entry visible.
+   */
+  modelRegistry: ProviderRegistry | undefined
   /** Why the last reading refresh failed, if it did. */
   error: string | undefined
   /** Why the last credential status lookup failed, if it did. */
@@ -44,6 +50,20 @@ function messageOf(error: unknown): string {
 }
 
 /**
+ * The registry view of a catalog result, or `undefined` when it does not carry one
+ * (a host older than `routableProviders`). Unknown is not the same as empty: the
+ * settings page keeps stored entries visible while the registry is unknown, so a
+ * failed or unavailable catalog can never hide configuration that needs clearing.
+ */
+export function registryOf(catalog: ModelCatalogLike | undefined): ProviderRegistry | undefined {
+  if (catalog?.routableProviders === undefined) return undefined
+  return {
+    routable: [...catalog.routableProviders],
+    failed: (catalog.failures ?? []).map(failure => failure.id),
+  }
+}
+
+/**
  * The browser's mirror of the host's readings.
  *
  * Two rules keep the status line honest: a failed refresh never clears what is
@@ -60,6 +80,7 @@ export class UsageStateClientStore {
     credentials: {},
     checkedAt: undefined,
     models: [],
+    modelRegistry: undefined,
     error: undefined,
     credentialsError: undefined,
     modelsError: undefined,
@@ -122,12 +143,18 @@ export class UsageStateClientStore {
     try {
       const result = await this.deps.modelCatalog()
       if (!result.ok) {
-        this.publish({ modelsError: result.error.message })
+        // The registry is unknown again, not stale: a list we could not read must
+        // not be used to conclude that a provider is gone.
+        this.publish({ modelsError: result.error.message, modelRegistry: undefined })
         return
       }
-      this.publish({ models: flattenCatalog(result.value), modelsError: undefined })
+      this.publish({
+        models: flattenCatalog(result.value),
+        modelRegistry: registryOf(result.value),
+        modelsError: undefined,
+      })
     } catch (error) {
-      this.publish({ modelsError: messageOf(error) })
+      this.publish({ modelsError: messageOf(error), modelRegistry: undefined })
     }
   }
 

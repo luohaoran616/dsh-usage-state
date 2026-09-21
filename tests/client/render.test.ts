@@ -65,6 +65,7 @@ function storeWith(input: {
   snapshots?: Record<string, UsageSnapshot>
   credentials?: Record<string, CredentialDescription>
   models?: Array<{ provider: string; providerName: string; model: string; name: string }>
+  registry?: { routable: readonly string[]; failed: readonly string[] }
 }) {
   const state = {
     status: 'ready' as const,
@@ -73,6 +74,7 @@ function storeWith(input: {
     credentials: input.credentials ?? {},
     checkedAt: 1_000,
     models: input.models ?? [],
+    modelRegistry: input.registry,
     error: undefined,
     credentialsError: undefined,
     modelsError: undefined,
@@ -373,6 +375,43 @@ test('a hidden provider is marked as such instead of showing a target', () => {
 
   assert.match(html, /Hidden/)
   assert.doesNotMatch(html, /Detected/)
+})
+
+test('a provider deleted in DSH disappears from the settings page', () => {
+  // The mode click persisted `opencode-go`; DSH no longer has the provider, so the
+  // row must go even though the stored entry is still there.
+  const html = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [{ provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek V4 Flash' }],
+        registry: { routable: ['deepseek-official'], failed: [] },
+      }),
+      settings: settingsWith(configWith({ 'opencode-go': { mode: 'coding-plan' } })),
+      credentials: CREDENTIALS,
+    }),
+  )
+
+  assert.match(html, /DeepSeek/)
+  assert.doesNotMatch(html, /opencode-go/)
+
+  // Without a registry the row stays, so configuration is never hidden by a catalog
+  // that simply has not loaded.
+  const unknownRegistry = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [{ provider: 'deepseek-official', providerName: 'DeepSeek', model: 'deepseek-flash', name: 'DeepSeek V4 Flash' }],
+      }),
+      settings: settingsWith(configWith({ 'opencode-go': { mode: 'coding-plan' } })),
+      credentials: CREDENTIALS,
+    }),
+  )
+  assert.match(unknownRegistry, /opencode-go/)
 })
 
 test('the empty hint only shows when there is nothing to list at all', () => {

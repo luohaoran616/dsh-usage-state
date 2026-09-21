@@ -68,7 +68,7 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 
 - Verified against DSH `0.1.5-rc.2`, Node ≥ 20.
 - Distributed via GitHub; **not published to npm** (`private: true`).
-- Version `0.2.0`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
+- Version `0.2.1`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
 
 ## Limitations
 

@@ -84,6 +84,7 @@ test('a fresh store is idle and empty', () => {
     credentials: {},
     checkedAt: undefined,
     models: [],
+    modelRegistry: undefined,
     error: undefined,
     credentialsError: undefined,
     modelsError: undefined,
@@ -231,4 +232,55 @@ test('a failing model catalog keeps the previous list and records why', async ()
 
   assert.equal(store.getSnapshot().models.length, 2)
   assert.equal(store.getSnapshot().modelsError, 'llm unavailable')
+})
+
+test('refreshModels keeps the live provider registry so stale providers can be pruned', async () => {
+  const store = new UsageStateClientStore({
+    getState: async () => ({ ok: true, value: VIEW }),
+    describeCredentials: async () => ({ ok: true, value: REPORT }),
+    modelCatalog: async () => ({
+      ok: true,
+      value: {
+        groups: [{ id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'deepseek-flash', name: 'DeepSeek Flash' }] }],
+        routableProviders: ['deepseek-official', 'flaky-relay'],
+        failures: [{ id: 'flaky-relay', name: 'Relay', message: 'timeout' }],
+      },
+    }),
+  })
+
+  await store.refreshModels()
+
+  assert.deepEqual(store.getSnapshot().modelRegistry, {
+    routable: ['deepseek-official', 'flaky-relay'],
+    failed: ['flaky-relay'],
+  })
+})
+
+test('a host that does not report a registry leaves it unknown rather than empty', async () => {
+  const { store } = harness()
+
+  await store.refreshModels()
+
+  // Unknown, not empty: an empty registry would read as "DSH has no providers".
+  assert.equal(store.getSnapshot().modelRegistry, undefined)
+})
+
+test('a failed model catalog makes the registry unknown again, not stale', async () => {
+  let fail = false
+  const store = new UsageStateClientStore({
+    getState: async () => ({ ok: true, value: VIEW }),
+    describeCredentials: async () => ({ ok: true, value: REPORT }),
+    modelCatalog: async () =>
+      fail
+        ? { ok: false, error: { message: 'llm unavailable' } }
+        : { ok: true, value: { ...MODEL_CATALOG, routableProviders: ['deepseek-official', 'zai'] } },
+  })
+
+  await store.refreshModels()
+  assert.ok(store.getSnapshot().modelRegistry !== undefined)
+
+  fail = true
+  await store.refreshModels()
+
+  assert.equal(store.getSnapshot().modelRegistry, undefined)
 })

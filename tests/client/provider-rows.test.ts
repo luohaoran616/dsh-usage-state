@@ -115,6 +115,52 @@ test('a configured provider that left the catalog keeps a row with no models', (
   assert.equal(rows[0]?.selected, 'api')
 })
 
+test('a provider DSH no longer has loses its row even though a mode is stored', () => {
+  // Picking a mode persists an entry. Deleting the provider in DSH must not leave
+  // that entry on the page forever: the live registry is the source of truth.
+  const config = configWith({ providers: { 'opencode-go': { mode: 'coding-plan' } } })
+
+  const rows = buildProviderRows({
+    models: MODELS,
+    config,
+    catalog: CATALOG,
+    registry: { routable: ['deepseek-official', 'zai'], failed: [] },
+  })
+
+  assert.deepEqual(rows.map(row => row.provider), ['deepseek-official', 'zai'])
+})
+
+test('a provider DSH still has but that lists no models loses its row too', () => {
+  // DSH filters zero-model groups out of the catalog, so the provider vanishes
+  // from the model list the user sees; our row has to follow it.
+  const config = configWith({ providers: { 'opencode-go': { mode: 'coding-plan' } } })
+
+  const rows = buildProviderRows({
+    models: MODELS,
+    config,
+    catalog: CATALOG,
+    registry: { routable: ['deepseek-official', 'zai', 'opencode-go'], failed: [] },
+  })
+
+  assert.deepEqual(rows.map(row => row.provider), ['deepseek-official', 'zai'])
+})
+
+test('a provider DSH still has, but whose models could not be listed, keeps its row', () => {
+  // Present in the registry with a failed model listing: still a real provider, so
+  // its configuration stays reachable instead of silently disappearing.
+  const config = configWith({ providers: { 'flaky-relay': { mode: 'api', sourceId: 'deepseek' } } })
+
+  const rows = buildProviderRows({
+    models: [],
+    config,
+    catalog: CATALOG,
+    registry: { routable: ['flaky-relay'], failed: ['flaky-relay'] },
+  })
+
+  assert.deepEqual(rows.map(row => row.provider), ['flaky-relay'])
+  assert.deepEqual(rows[0]?.models, [])
+})
+
 test('rows follow the stored order, then the catalog order', () => {
   const config = configWith({ order: ['zai'] })
 

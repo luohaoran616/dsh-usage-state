@@ -359,7 +359,7 @@ export function SettingsSection(props: SettingsSectionProps) {
   }
 
   const config = normalizeConfig(snapshot.value ?? {})
-  const rows = buildProviderRows({ models: state.models, config, catalog: state.catalog })
+  const rows = buildProviderRows({ models: state.models, config, catalog: state.catalog, registry: state.modelRegistry })
 
   const write = (path: string[], value: unknown) => {
     void props.settings.mutate([{ op: 'set', path, value }])

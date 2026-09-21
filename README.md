@@ -97,7 +97,7 @@ dsh plugin --profile web remove dsh-usage-state
 
 - 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20（`engines`）。
 - 通过 GitHub 安装，**不发布到 npm**（`private: true`）。
-- 版本 `0.2.0`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
+- 版本 `0.2.1`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
 
 ## 已知限制
 

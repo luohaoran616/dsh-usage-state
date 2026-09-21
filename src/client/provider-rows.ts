@@ -1,7 +1,7 @@
 import { suggestSourceId, type ProviderConfigEntry, type ProviderMode, type UsageStateConfig } from '../shared/config.ts'
 import type { SourceCatalog } from '../shared/display.ts'
 import { orderProviders, resolveProvider, type ProviderResolution } from '../shared/providers.ts'
-import type { CatalogModelRow } from './model-rows.ts'
+import type { CatalogModelRow, ProviderRegistry } from './model-rows.ts'
 
 /**
  * One settings-page row: a DSH provider, the models behind it, and the account it
@@ -24,6 +24,27 @@ export interface BuildProviderRowsInput {
   config: UsageStateConfig
   catalog: SourceCatalog
   endpointHints?: Readonly<Record<string, string>>
+  /**
+   * The live DSH provider registry.
+   *
+   * `undefined` means "not known yet" (the catalog has not loaded, or the host does
+   * not report one), and then every stored entry keeps its row — a slow or failed
+   * catalog lookup must never hide configuration the user needs to inspect or clear.
+   * Once known, the registry decides: a stored entry survives only for a provider DSH
+   * still has whose models could not be listed. A provider that was deleted, or that
+   * now lists no models at all, gets no row.
+   */
+  registry?: ProviderRegistry
+}
+
+/**
+ * Whether a stored entry that the model catalog does not list still deserves a row.
+ * A provider DSH has but whose model list failed is real, just unreadable, so its row
+ * stays; one that is routable with zero models looks deleted in DSH's own model list,
+ * so its row goes with it.
+ */
+function stillConfigured(registry: ProviderRegistry, provider: string): boolean {
+  return registry.routable.includes(provider) && registry.failed.includes(provider)
 }
 
 export function buildProviderRows(input: BuildProviderRowsInput): ProviderRow[] {
@@ -37,10 +58,13 @@ export function buildProviderRows(input: BuildProviderRowsInput): ProviderRow[] 
     }
   }
 
-  // A provider that is configured but no longer in the catalog still gets a row,
-  // otherwise its configuration could never be inspected or cleared.
+  // A provider that is configured but no longer offered by DSH is stale. Its entry is
+  // left in the document (re-adding the provider restores the chosen mode), but it must
+  // not leave a phantom row on the page for a provider that is gone.
   for (const provider of [...input.config.order, ...Object.keys(input.config.providers)]) {
-    if (!grouped.has(provider)) grouped.set(provider, { providerName: provider, models: [] })
+    if (grouped.has(provider)) continue
+    if (input.registry !== undefined && !stillConfigured(input.registry, provider)) continue
+    grouped.set(provider, { providerName: provider, models: [] })
   }
 
   return orderProviders([...grouped.keys()], input.config).map(provider => {
