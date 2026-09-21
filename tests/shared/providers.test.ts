@@ -23,6 +23,14 @@ const CATALOG: SourceCatalog = [
     credentialRefs: { 'coding-plan': ['ZAI_API_KEY'] },
   },
   {
+    id: 'opencode',
+    displayName: 'OpenCode Zen Go',
+    modes: ['coding-plan'],
+    requiresBaseUrl: false,
+    defaultBaseUrl: { 'coding-plan': 'https://opencode.ai' },
+    credentialRefs: { 'coding-plan': ['OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY'] },
+  },
+  {
     id: 'sub2api',
     displayName: 'Sub2API',
     modes: ['api', 'coding-plan'],
@@ -132,6 +140,35 @@ test('the endpoint declared by the provider picks the data source and is used fo
   // Only the origin is usable: adapters append their own path to it.
   assert.equal(resolution.baseUrl, 'https://open.bigmodel.cn')
   assert.equal(resolution.baseUrlPinned, undefined, 'a declared host is a hint, not a pin')
+})
+
+test('both OpenCode Go routes resolve to the same coding-plan reading', () => {
+  const builtIn = resolveProvider({ provider: 'opencode-go', config: DEFAULT_CONFIG, catalog: CATALOG })
+
+  assert.deepEqual(builtIn, {
+    provider: 'opencode-go',
+    sourceId: 'opencode',
+    mode: 'coding-plan',
+    reason: 'auto',
+    key: 'opencode:coding-plan',
+  })
+
+  // The custom route declares the Zen Go API base; only its origin is kept.
+  const custom = resolveProvider({
+    provider: 'opencode-go-deepseek',
+    config: DEFAULT_CONFIG,
+    catalog: CATALOG,
+    endpointHint: 'https://opencode.ai/zen/go/v1',
+  })
+
+  assert.deepEqual(custom, {
+    provider: 'opencode-go-deepseek',
+    sourceId: 'opencode',
+    mode: 'coding-plan',
+    reason: 'auto',
+    baseUrl: 'https://opencode.ai',
+    key: 'opencode:coding-plan',
+  })
 })
 
 test('originOf understands API bases and refuses junk', () => {

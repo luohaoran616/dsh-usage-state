@@ -152,7 +152,34 @@ test('getState reads the configured model and returns its balance', async () => 
 
   assert.deepEqual(urls, ['https://api.deepseek.com/user/balance'])
   assert.deepEqual(state.snapshots['deepseek:api']?.balances, [{ amount: 66.28, currency: 'CNY' }])
-  assert.equal(state.sources.length, 4)
+  assert.equal(state.sources.length, 5)
+})
+
+const OPENCODE_BODY = {
+  usage: {
+    rolling: { status: 'ok', percent: 12.5, resetsAt: '2026-09-21T10:08:43.658Z' },
+    weekly: { status: 'ok', percent: 6, resetsAt: '2026-09-28T00:00:00.658Z' },
+    monthly: { status: 'ok', percent: 2, resetsAt: '2026-10-21T03:42:07.658Z' },
+  },
+}
+
+test('both OpenCode Go routes share one target, one request and one 5h/7d/30d reading', async () => {
+  const host = contextStub({
+    settings: { 'usage-state': { providers: { 'opencode-go': {}, 'opencode-go-deepseek': {} } } },
+    credentials: { OPENCODE_GO_API_KEY: 'sk-go' },
+  })
+  const urls: string[] = []
+  const fetch: FetchLike = async url => {
+    urls.push(url)
+    return { ok: true, status: 200, json: async () => OPENCODE_BODY }
+  }
+
+  const service = createUsageState(host.ctx, { fetch, now: host.time, credentialFallback: false })
+  const state = await service.getState(false)
+
+  assert.deepEqual(urls, ['https://opencode.ai/zen/go/v1/usage'])
+  assert.deepEqual(state.snapshots['opencode:coding-plan']?.windows.map(window => window.id), ['5h', '7d', '30d'])
+  assert.equal(state.snapshots['opencode:coding-plan']?.windows[0]?.usedPercent, 12.5)
 })
 
 test('a model nobody configured produces no poll target at all', async () => {

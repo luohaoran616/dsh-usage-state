@@ -258,16 +258,24 @@ export function normalizeConfig(raw: unknown): UsageStateConfig {
   }
 }
 
-const PROVIDER_HINTS: ReadonlyArray<{ sourceId: string; pattern: RegExp }> = [  { sourceId: 'deepseek', pattern: /deepseek/ },
+const PROVIDER_HINTS: ReadonlyArray<{ sourceId: string; pattern: RegExp }> = [
+  // Gateways first: an id that names sub2api is a self-hosted relay whatever
+  // models it happens to serve (`sub2api-opencode` is not an OpenCode account).
+  { sourceId: 'sub2api', pattern: /sub-?2-?api/ },
+  // Then OpenCode, and before deepseek: the Zen Go route that serves a DeepSeek
+  // model is literally named `opencode-go-deepseek`, so a bare `/deepseek/` test
+  // would otherwise claim it for the DeepSeek account.
+  { sourceId: 'opencode', pattern: /opencode/ },
+  { sourceId: 'deepseek', pattern: /deepseek/ },
   { sourceId: 'zai', pattern: /(zai|zhipu|bigmodel|glm)/ },
   { sourceId: 'kimi', pattern: /(kimi|moonshot)/ },
-  { sourceId: 'sub2api', pattern: /sub-?2-?api/ },
 ]
 
 const HOST_HINTS: ReadonlyArray<{ sourceId: string; pattern: RegExp }> = [
   { sourceId: 'deepseek', pattern: /(^|\.)api\.deepseek\.com$/ },
   { sourceId: 'zai', pattern: /(^|\.)(api\.z\.ai|open\.bigmodel\.cn|bigmodel\.cn)$/ },
   { sourceId: 'kimi', pattern: /(^|\.)(api\.kimi\.com|api\.moonshot\.cn|moonshot\.cn)$/ },
+  { sourceId: 'opencode', pattern: /(^|\.)opencode\.ai$/ },
 ]
 
 /**

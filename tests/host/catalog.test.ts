@@ -28,6 +28,19 @@ test('toSourceCatalog turns adapters into plain JSON the browser can consume', (
   assert.deepEqual(sub2api?.defaultBaseUrl, {})
 })
 
+test('the settings-page catalog lists OpenCode Zen Go as a coding-plan source', () => {
+  const entry = toSourceCatalog(ALL_SOURCES).find(candidate => candidate.id === 'opencode')
+
+  assert.deepEqual(entry, {
+    id: 'opencode',
+    displayName: 'OpenCode Zen Go',
+    modes: ['coding-plan'],
+    requiresBaseUrl: false,
+    defaultBaseUrl: { 'coding-plan': 'https://opencode.ai' },
+    credentialRefs: { 'coding-plan': ['OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY'] },
+  })
+})
+
 test('toSourceCatalog gives every served mode a default endpoint, except where the user must supply one', () => {
   const catalog = toSourceCatalog(ALL_SOURCES)
 

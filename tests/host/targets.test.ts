@@ -13,9 +13,10 @@ function configWith(models: UsageStateConfig['models']): UsageStateConfig {
 test('the source registry exposes every v1 source by id', () => {
   assert.deepEqual(
     ALL_SOURCES.map(source => source.id).sort(),
-    ['deepseek', 'kimi', 'sub2api', 'zai'],
+    ['deepseek', 'kimi', 'opencode', 'sub2api', 'zai'],
   )
   assert.equal(findSource('zai')?.displayName, 'z.ai / GLM')
+  assert.equal(findSource('opencode')?.displayName, 'OpenCode Zen Go')
   assert.equal(findSource('nope'), undefined)
 })
 
@@ -40,6 +41,12 @@ test('suggestSourceId recognises the provider ids people actually configure', ()
   assert.equal(suggestSourceId('moonshot'), 'kimi')
   assert.equal(suggestSourceId('kimi-code'), 'kimi')
   assert.equal(suggestSourceId('sub2api'), 'sub2api')
+  assert.equal(suggestSourceId('opencode-go'), 'opencode')
+  assert.equal(suggestSourceId('opencode-go-deepseek'), 'opencode')
+  assert.equal(suggestSourceId('opencode'), 'opencode')
+  // A self-hosted gateway that merely relays OpenCode models stays a gateway:
+  // the sub2api hint is checked first on purpose.
+  assert.equal(suggestSourceId('sub2api-opencode'), 'sub2api')
   assert.equal(suggestSourceId('my-relay'), undefined)
 })
 
@@ -48,8 +55,31 @@ test('suggestSourceId falls back to the endpoint host when the provider id says 
   assert.equal(suggestSourceId('my-relay', 'https://open.bigmodel.cn/api/paas/v4'), 'zai')
   assert.equal(suggestSourceId('my-relay', 'https://api.kimi.com/coding/v1'), 'kimi')
   assert.equal(suggestSourceId('my-relay', 'https://api.moonshot.cn/v1'), 'kimi')
+  assert.equal(suggestSourceId('my-relay', 'https://opencode.ai/zen/go/v1'), 'opencode')
+  assert.equal(suggestSourceId('my-relay', 'https://opencode.ai'), 'opencode')
   assert.equal(suggestSourceId('my-relay', 'https://gw.example.com'), 'sub2api')
   assert.equal(suggestSourceId('my-relay', 'not a url'), undefined)
+})
+
+test('both OpenCode Go routes collapse into one coding-plan target', () => {
+  const config = normalizeConfig({
+    providers: { 'opencode-go': {}, 'opencode-go-deepseek': {} },
+  })
+  const targets = resolveTargets(config, {
+    providers: ['opencode-go', 'opencode-go-deepseek'],
+    endpointHints: { 'opencode-go-deepseek': 'https://opencode.ai/zen/go/v1' },
+  })
+
+  // Account-level: the built-in route and the custom DeepSeek route are one account.
+  assert.equal(targets.length, 1)
+  assert.equal(targets[0]?.key, 'opencode:coding-plan')
+  assert.equal(targets[0]?.sourceId, 'opencode')
+  assert.equal(targets[0]?.mode, 'coding-plan')
+  // Only the origin is kept, whatever the winning route declared.
+  assert.ok(
+    targets[0]?.baseUrl === undefined || targets[0]?.baseUrl === 'https://opencode.ai',
+    `unexpected baseUrl ${targets[0]?.baseUrl}`,
+  )
 })
 
 test('targetKey is stable and per source+mode', () => {

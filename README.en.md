@@ -49,9 +49,11 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 | DeepSeek official | balance (CNY / USD) | — (no coding plan) | `DEEPSEEK_API_KEY` |
 | z.ai / Zhipu GLM | — | 5h / 7d used % | `ZAI_API_KEY` and friends |
 | Kimi (China) | Moonshot pay-as-you-go balance | Kimi Code subscription windows | `MOONSHOT_API_KEY` / `KIMI_CODING_API_KEY` |
+| OpenCode Zen Go | — | 5h / 7d / 30d used % | `OPENCODE_GO_API_KEY` / `OPENCODE_API_KEY` |
 | Sub2API (self-hosted) | balance / key quota | 5h / 7d from `rate_limits[]` | `SUB2API_API_KEY` + instance URL |
 
 - **z.ai is regional**: a coding-plan key only works on its own region (`open.bigmodel.cn` for China, `api.z.ai` globally). China is the default; the other host is tried as a mirror, and you can pin an endpoint in the settings.
+- **OpenCode Zen Go** reads `rolling` / `weekly` / `monthly` from `opencode.ai/zen/go/v1/usage`. Both DSH routes into the same account (built-in `opencode-go` and the custom `opencode-go-deepseek`) produce one reading and one request. A missing subscription or a rejected key is reported as an auth failure, never as 0%.
 - Other vendors (Claude Pro/Max, MiniMax, OpenRouter, Codex, Antigravity, Volcengine Ark, …) are not implemented, but the adapter contract and a candidate list are ready: see [`docs/adapters.md`](docs/adapters.md).
 
 ## Display, refresh, credentials
@@ -66,7 +68,7 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 
 - Verified against DSH `0.1.5-rc.2`, Node ≥ 20.
 - Distributed via GitHub; **not published to npm** (`private: true`).
-- Version `0.1.0`: DeepSeek and z.ai are verified against live accounts; see the limitations below.
+- Version `0.2.0`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
 
 ## Limitations
 

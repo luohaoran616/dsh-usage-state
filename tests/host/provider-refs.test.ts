@@ -12,6 +12,13 @@ const PI_AI = {
   },
 }
 
+const OPENCODE_PI_AI = {
+  providers: {
+    'opencode-go': { apiKeyEnv: 'OPENCODE_GO_API_KEY' },
+    'opencode-go-deepseek': { apiKeyEnv: 'OPENCODE_GO_API_KEY', baseURL: 'https://opencode.ai/zen/go/v1' },
+  },
+}
+
 test('the llm-deepseek namespace contributes its apiKeyEnv for the deepseek source', () => {
   assert.deepEqual(
     providerCredentialRefs({ sourceId: 'deepseek', deepseekSettings: { apiKeyEnv: 'MY_DS_KEY' } }),
@@ -27,6 +34,14 @@ test('pi-ai providers contribute their apiKeyEnv when the provider resolves to t
   assert.deepEqual(providerCredentialRefs({ sourceId: 'sub2api', piAiSettings: PI_AI }), ['ORCAROUTER_API_KEY'])
   assert.deepEqual(providerCredentialRefs({ sourceId: 'zai', piAiSettings: PI_AI }), ['GLM_KEY'])
   assert.deepEqual(providerCredentialRefs({ sourceId: 'kimi', piAiSettings: PI_AI }), ['KIMI_KEY'])
+})
+
+test('both OpenCode Go routes contribute their apiKeyEnv, deduplicated, to the opencode source', () => {
+  assert.deepEqual(providerCredentialRefs({ sourceId: 'opencode', piAiSettings: OPENCODE_PI_AI }), [
+    'OPENCODE_GO_API_KEY',
+  ])
+  // The source's own built-in probes still apply after the discovered refs.
+  assert.deepEqual(providerCredentialRefs({ sourceId: 'opencode', piAiSettings: PI_AI }), [])
 })
 
 test('a provider without apiKeyEnv contributes nothing, and order follows the document', () => {

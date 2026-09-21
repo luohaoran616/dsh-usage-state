@@ -1,6 +1,6 @@
 {
   "name": "dsh-usage-state",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "DSH plugin: show account balance (API mode) or coding-plan quota (5h/7d) for the model in use",
@@ -9,8 +9,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --import ./tests/support/client-render-hook.mjs --test tests/",
-    "test:watch": "node --import ./tests/support/client-render-hook.mjs --test --watch tests/",
+    "test": "node --import ./tests/support/client-render-hook.mjs --test",
+    "test:watch": "node --import ./tests/support/client-render-hook.mjs --test --watch",
     "typecheck": "tsc --noEmit",
     "build": "node -e \"require('node:fs').rmSync('lib',{recursive:true,force:true})\" && tsdown",
     "watch": "tsdown --watch"

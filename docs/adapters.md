@@ -1,6 +1,6 @@
 # 添加一个数据源（Adapter）
 
-`dsh-usage-state` 只实现四家数据源（DeepSeek、z.ai / GLM、Kimi、Sub2API）。其余厂商靠 adapter 扩展——加一个适配器只需要两个文件加一行注册，插件其余部分（设置页列出的数据源、轮询目标、状态行渲染、双语文案）会自动跟上。
+`dsh-usage-state` 只实现五家数据源（DeepSeek、z.ai / GLM、Kimi、OpenCode Zen Go、Sub2API）。其余厂商靠 adapter 扩展——加一个适配器只需要两个文件加一行注册，插件其余部分（设置页列出的数据源、轮询目标、状态行渲染、双语文案）会自动跟上。
 
 ## 契约
 
@@ -63,6 +63,7 @@ export interface UsageSource {
 | DeepSeek 官方 | API | `GET {base}/user/balance` | 多币种返回顺序**不稳定**，固定取首条会让余额在真值与 0 之间跳；按"优先有余额 → 优先 CNY"挑选。官方无 coding plan、无窗口 |
 | z.ai / 智谱 GLM | Coding Plan | `GET {base}/api/monitor/usage/quota/limit`，默认 `https://open.bigmodel.cn`，镜像 `https://api.z.ai` | 主形态按 `unit` 映射：`3` → 5h、`6` → 7d；`TIME_LIMIT` 是月度 MCP 额度**不能**当编码窗口；`percentage` 已是 0..100；`unit` 缺失时按 `nextResetTime` 升序补位（0% 滚动窗口不带重置时间）。**鉴权失败是 HTTP 200 + `{success:false,code:1000}`**，且国内/国际的 key 互不通用（实测确认）→ 用 `fallbackRequests` 试镜像。端点非官方文档，社区逆向所得，已保留旧 `plans[]` 与扁平窗口两种兜底形态 |
 | Kimi / Moonshot | API + Coding Plan | `GET {base}/v1/users/me/balance`（余额）/ `GET {base}/coding/v1/usages`（订阅） | 一家两种读法：按模式分派端点与密钥。编程套餐端点**必须**带 `user-agent: KimiCLI/1.6`，否则拒绝。Moonshot 余额的"分/元"单位无字段可辨，当前沿用 `>= 100 视为分` 的启发式——**用真实 key 复核过再信任绝对值** |
+| OpenCode Zen Go | Coding Plan | `GET https://opencode.ai/zen/go/v1/usage` | **必须带浏览器 UA**（否则 Cloudflare error 1010 → 403，实测）。根对象是 `usage.{rolling,weekly,monthly}`（文档写作 `data.usage`，两种都接受），字段 `percent` 已是 0..100 已用百分比（用 `clampPercent`，**不要**用 `normalizePercent`，否则 `1` 会变成 100%），`resetsAt` 是 ISO 串。窗口名 `rolling/weekly/monthly` → 规范键 `5h/7d/30d`。401/403 = 无订阅或密钥无效（**不是** 0%）。`resolveProvider` 会把 provider 声明的 `baseURL` 归一成 origin、`normalizeBaseUrl` 会剥掉尾部 `/vN`，所以请求前还要再剥掉 `/zen/go` 尾段，否则出现 `/zen/go/zen/go/v1/usage` |
 | Sub2API（自建） | API + Coding Plan | `GET {base}/v1/usage` | 未文档化的内部接口，字段曾出现前后端漂移；所有字段可选、未知结构降级。一个接口覆盖两种模式：`quota.remaining` 或钱包 `balance` 视为 USD 余额，`rate_limits[]` 的 `window` 直接是 `5h`/`1d`/`7d`（美元计价，百分比自算 `used/limit`）。`requiresBaseUrl: true` |
 
 ## 候选数据源（未实现）
@@ -80,7 +81,8 @@ export interface UsageSource {
 | CommandCode | `GET https://api.commandcode.ai/alpha/billing/credits` | 返回 `windowLimits.{fiveHour,weekly}.{used,cap,resetAt}`，形态与我们的窗口模型几乎一致 |
 | Volcengine Ark Coding Plan | `open.volcengineapi.com` 控制面 | 需要 AK/SK HMAC 签名，凭据形态超出 v1 |
 | Gemini Code Assist / Antigravity | 私有端点 / 本地语言服务 | OAuth 或本地进程通信，且 Google 已关闭个人版 CLI OAuth |
-| OpenCode Zen | `GET https://opencode.ai/zen/go/v1/usage` | 需要浏览器 UA，Cloudflare 保护 |
+
+> OpenCode Zen 已实现（见上表），不再是候选；它只差一个 `user-agent` 就能直连，不需要 OAuth。
 
 **优先级建议**：MiniMax → CommandCode → SiliconFlow（都是纯 API key、返回结构简单），再考虑为 Anthropic / Codex 增加 OAuth 凭据通道。
 

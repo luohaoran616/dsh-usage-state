@@ -51,9 +51,11 @@ dsh plugin --profile web remove dsh-usage-state
 | DeepSeek 官方 | 余额（CNY / USD） | —（官方无 coding plan） | `DEEPSEEK_API_KEY` |
 | z.ai / 智谱 GLM | — | 5h / 7d 已用 % | `ZAI_API_KEY` 等 |
 | Kimi 国内版 | Moonshot 按量余额 | Kimi Code 订阅窗口 | `MOONSHOT_API_KEY` / `KIMI_CODING_API_KEY` |
+| OpenCode Zen Go | — | 5h / 7d / 30d 已用 % | `OPENCODE_GO_API_KEY` / `OPENCODE_API_KEY` |
 | Sub2API（自建网关） | 余额 / key 配额 | `rate_limits[]` 的 5h / 7d | `SUB2API_API_KEY` + 实例地址 |
 
 - **z.ai 分区域**：coding plan 的 key 只在自己区域的站点有效（国内 `open.bigmodel.cn` / 国际 `api.z.ai`）。默认国内站，失败时自动镜像重试；也可在设置里钉死端点。
+- **OpenCode Zen Go**：读 `opencode.ai/zen/go/v1/usage` 的 `rolling` / `weekly` / `monthly`；通往同一账户的两条 DSH 路由（内置 `opencode-go` 与自定义 `opencode-go-deepseek`）只产生一个读数、只发一次请求。无订阅或密钥无效时报鉴权失败，而非 0%。
 - **其他厂商**（Claude Pro/Max、MiniMax、OpenRouter、Codex、Antigravity、Volcengine Ark…）未实现，但适配器契约与候选清单已备好，见 [`docs/adapters.md`](docs/adapters.md)。
 
 ## 显示与交互
@@ -95,7 +97,7 @@ dsh plugin --profile web remove dsh-usage-state
 
 - 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20（`engines`）。
 - 通过 GitHub 安装，**不发布到 npm**（`private: true`）。
-- 版本 `0.1.0`：DeepSeek 与 z.ai 已在真机验证，其余见下。
+- 版本 `0.2.0`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
 
 ## 已知限制
 
