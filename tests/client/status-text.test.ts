@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { compactParts, partsToText, statusParts, windowLabel, type Translate } from '../../src/client/status-text.ts'
+import { partsToText, statusParts, windowLabel, type Translate } from '../../src/client/status-text.ts'
 import { en } from '../../src/client/locales.ts'
 import type { StatusSegment } from '../../src/shared/display.ts'
 
@@ -105,56 +105,4 @@ test('a balance tooltip carries the provider split when the endpoint reports one
   })
 
   assert.equal(parts[0]?.tooltip, 'Granted 0 · Topped up 58.13 · Source DeepSeek · Mode API balance')
-})
-
-test('compactParts drops the label and the age to fit the action strip', () => {
-  const parts = statusParts({
-    segments: [
-      { kind: 'label', text: 'z.ai / GLM' },
-      { kind: 'window', windowId: '5h', percent: '42%', severity: 'normal', resetsAt: NOW + 4 * 3600_000, bar: '███░░░░░' },
-      { kind: 'window', windowId: '7d', percent: '96%', severity: 'critical', bar: '████████' },
-    ],
-    t,
-    now: NOW,
-    sourceLabel: 'z.ai / GLM',
-    modeLabel: 'Coding plan',
-  })
-
-  const compact = compactParts(parts)
-
-  assert.deepEqual(
-    compact.map(part => part.kind),
-    ['window', 'window'],
-  )
-  // The strip has one line next to icons, so the countdown and bar move to the tooltip.
-  assert.equal(compact[0]?.kind === 'window' ? compact[0].countdown : 'set', undefined)
-  assert.equal(compact[0]?.kind === 'window' ? compact[0].bar : 'set', undefined)
-  assert.equal(compact[0]?.kind === 'window' ? compact[0].text : undefined, '5h 42%')
-  assert.equal(compact[0]?.kind === 'window' ? compact[0].severity : undefined, 'normal')
-  // Details survive in the tooltip.
-  assert.match(compact[0]?.tooltip ?? '', /Resets at /)
-  assert.deepEqual(compact[1]?.tooltip, 'Source z.ai / GLM · Mode Coding plan')
-})
-
-test('compactParts keeps balances and state parts as they are', () => {
-  const parts = statusParts({
-    segments: [
-      { kind: 'label', text: 'DeepSeek', stale: true, staleSince: NOW - 12 * 60_000 },
-      { kind: 'balance', amount: '¥58.13', currency: 'CNY', granted: 0, toppedUp: 58.13 },
-      { kind: 'state', state: 'error', errorKind: 'auth', errorDetail: 'HTTP 401' },
-    ],
-    t,
-    now: NOW,
-    sourceLabel: 'DeepSeek',
-  })
-
-  const compact = compactParts(parts)
-
-  assert.deepEqual(
-    compact.map(part => part.kind),
-    ['balance', 'state'],
-  )
-  assert.equal(compact[0]?.text, '¥58.13')
-  assert.equal(compact[1]?.text, 'Unavailable')
-  assert.deepEqual(compactParts([]), [])
 })

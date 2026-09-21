@@ -1,6 +1,6 @@
 # dsh-usage-state
 
-See your **account balance** or **coding-plan quota** at a glance in [DSH (DeepSeek Harness)](https://github.com/deepseek-ai) — right under the composer and under every completed turn.
+See your **account balance** or **coding-plan quota** at a glance in [DSH (DeepSeek Harness)](https://github.com/deepseek-ai) — right under the composer stats row.
 
 > 中文说明见 [README.md](README.md)。
 
@@ -14,31 +14,39 @@ hover any segment:           Source DeepSeek · Mode API balance · Granted 0 ·
 
 - **Works with zero configuration**: the plugin figures out which data source and mode a provider needs, and reuses the API key DSH already has.
 - **Configured per provider, not per model** — readings are account-level, so each provider gets one setting: `Auto` / `API` / `Coding Plan` / `Hidden`. The model list is informational.
-- **Two render sites**: directly below the composer's stats row, and under every completed turn.
+- **One line, always visible**: directly below the composer's stats row (the native stats row and its popover are left untouched, not replaced) — no hover, no click.
 - **Never invents data**: a failed refresh keeps the last good value and marks it stale (`12m ago ⚠`); rejected keys, endpoint errors and network problems each get a readable reason.
 - **Hover details**: source and mode, the window's absolute reset time, the granted/topped-up split of a balance, the failure reason with the provider's own message.
 - **Bilingual** (zh / en), following the DSH locale setting.
-- **Display only**: no cost accounting, pricing catalog, history, budgets or peak/off-peak alerts — everything [`dsh-cost-meter`](https://github.com/Han-1413141/dsh-cost-meter) does beyond the readout itself is deliberately out of scope.
+- **Display only**: balances and quotas, nothing else — no cost accounting, pricing catalog, history or budgets.
 
 ## Install
 
+**Requirements**: DSH `0.1.5-rc.2` or newer, Node ≥ 20, installed into the `web` profile. The repository **ships the prebuilt `lib/`**, so installation has no build step.
+
 ```bash
+# 1) install
 dsh plugin --profile web add github:takboo/dsh-usage-state
-```
 
-Then **restart DSH** (the plugin's bundle patch is read at startup). To remove:
+# 2) restart DSH — the plugin's bundle patch is read at startup
 
-```bash
+# 3) remove
 dsh plugin --profile web remove dsh-usage-state
 ```
 
-For development, a local path works too: `dsh plugin --profile web add /path/to/dsh-usage-state`.
+For development, a local path works too (host-side changes still need a DSH restart):
+
+```bash
+dsh plugin --profile web add /path/to/dsh-usage-state
+```
+
+Nothing showing up after installing? See the troubleshooting table at the end of [`docs/adapters.md`](docs/adapters.md).
 
 ## Quick start
 
 1. Open **Settings → Usage state**: one row per provider configured in DSH.
 2. Leave it on **Auto** (it detects the data source and its primary mode), or pick `API` / `Coding Plan` / `Hidden`; use ↑↓ to reorder.
-3. The reading appears below the composer and under each turn.
+3. The reading appears directly below the composer's stats row.
 
 If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider without a credential yet), expand that row's **Advanced** block to override the source, set the endpoint, name the credential, or paste a key (written to the DSH credential store).
 
@@ -60,7 +68,7 @@ A very long provider name never pushes the controls around: the card header stay
 
 ## Display, refresh, credentials
 
-- **Placement**: `conversation.composer.dock` (aligned with the native stats row), and `conversation.chat.assistant-actions` (the turn action bar, after `Ran for …` and the timestamp). The action bar is always visible on the latest turn and hover-only on older turns — the platform's own per-turn token/duration panel behaves the same way.
+- **Placement**: directly below the composer's stats row, aligned with the native row's geometry. The line is always visible — it never depends on hover or a click.
 - **Elements**: provider label · balance + currency · each window (5h / 7d / 30d) used % · reset countdown · mini progress bar · threshold colours (defaults: amber ≥80%, red ≥95%).
 - **Semantics**: percentages are always *used*; balances only appear in API mode, and coding-plan mode shows the windows the source actually has (5h / 7d for z.ai and Sub2API, plus 30d for OpenCode Zen Go); a stale reading shows its age instead of hiding.
 - **Refresh**: 2s after a turn ends, plus a 5-minute idle fallback; at most one real request per source per 60s, in-flight calls are shared, failures are not throttled.
@@ -70,13 +78,13 @@ A very long provider name never pushes the controls around: the card header stay
 
 - Verified against DSH `0.1.5-rc.2`, Node ≥ 20.
 - Distributed via GitHub; **not published to npm** (`private: true`).
-- Version `0.2.3`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
+- Version `0.3.0`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
 
 ## Limitations
 
 - **Kimi and Sub2API are not verified against live accounts yet** (no credentials on the author's machine); their `/v1/usage` style endpoints are undocumented and parsed defensively.
-- **The line under a completed turn shows the current value, not the value at that moment** — both sites read the same latest snapshot. Pinning a per-turn value (plus a delta since the previous turn) needs extra persistence; the approach is decided but not implemented.
 - **Clicking the line does not open settings** (the platform exposes no public "open settings panel" service); details are in the hover tooltip.
+- **Current reading only**: the line reports the account's latest value. The plugin keeps no per-turn and no per-time history, so scrolling back through old turns shows no "balance at that moment". Account history, if ever added, would be keyed by time rather than by turn — a separate decision.
 - Full list: [`docs/implementation.md`](docs/implementation.md) §6.
 
 ## Development

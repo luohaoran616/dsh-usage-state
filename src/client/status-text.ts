@@ -161,34 +161,6 @@ export function statusParts(input: StatusPartsInput): StatusPart[] {
   return parts
 }
 
-/**
- * The same parts, reduced to what fits the completed-turn action strip: one line
- * shared with the turn's icons and the platform's own usage/time pills.
- *
- * The provider label becomes the icon, the stale age is dropped (the icon keeps the
- * tooltip), and each window keeps only its percentage — the countdown, the progress
- * bar and every other detail stay available in the tooltip.
- */
-export function compactParts(parts: readonly StatusPart[]): StatusPart[] {
-  const compact: StatusPart[] = []
-  for (const part of parts) {
-    if (part.kind === 'label' || part.kind === 'age') continue
-    if (part.kind === 'window') {
-      compact.push({
-        kind: 'window',
-        id: part.id,
-        text: part.text,
-        percent: part.percent,
-        severity: part.severity,
-        ...(part.tooltip === undefined ? {} : { tooltip: part.tooltip }),
-      })
-      continue
-    }
-    compact.push(part)
-  }
-  return compact
-}
-
 /** One-line rendering, used by the tests and by any place that needs plain text. */
 export function partsToText(parts: readonly StatusPart[]): string {
   return parts

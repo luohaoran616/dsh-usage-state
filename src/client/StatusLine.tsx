@@ -1,18 +1,16 @@
 import { Fragment } from 'react'
-import { IconDataOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import { describeStatus, type ModelStatus, type Severity } from '../shared/display.ts'
 import { resolveProvider } from '../shared/providers.ts'
 import type { UsageStateConfig } from '../shared/config.ts'
 import type { UsageStateSnapshotSource } from './status-source.ts'
-import { compactParts, statusParts, SEPARATOR, type StatusPart } from './status-text.ts'
+import { statusParts, SEPARATOR, type StatusPart } from './status-text.ts'
 import { useNow, useSettingsValue, useStoreState } from './hooks.ts'
 import type { ModelSelectionProjectionLike, SettingsSource, Translate } from './context.ts'
-import type { StatusLineVariant } from './slots.ts'
 
 export interface StatusLineProps {
   t: Translate
-  variant: StatusLineVariant
   usageState: UsageStateSnapshotSource
   settings: SettingsSource<{ value: UsageStateConfig | undefined }>
   useProjection?: <T>(key: string) => T | undefined
@@ -31,7 +29,10 @@ const BASE_STYLE = {
   textOverflow: 'ellipsis',
 }
 
-/** Matches the shipped stats row so this reads as its second line, not a stray block. */
+/**
+ * The composer mount point: one line directly under the platform's stats row, so
+ * it reads as that row's second line rather than a stray block.
+ */
 const DOCK_STYLE = {
   ...BASE_STYLE,
   width: '100%',
@@ -39,25 +40,6 @@ const DOCK_STYLE = {
   margin: '0 auto',
   padding: '4px calc(var(--dsh-composer-side-clearance) + 16px) 0',
 }
-
-/**
- * The completed-turn mount point is the platform's action strip: a 28px row that
- * holds the turn's icons, its own token/time pills, and the timestamp.
- *
- * Our entry is placed between the copy and branch controls by the platform
- * (`MessageIconActions.extraActions`), which is not where a reading belongs, so
- * `order: 1` moves it to the end of that flex row instead. The label becomes an
- * icon and the countdown/progress bar drop out (see `compactParts`); every detail
- * stays in the tooltip.
- */
-const ACTIONS_STYLE = {
-  ...BASE_STYLE,
-  order: 1,
-  justifyContent: 'flex-end',
-  fontSize: '12px',
-}
-
-const ICON_STYLE = { display: 'inline-flex', alignItems: 'center', color: 'var(--dsw-alias-label-tertiary)' }
 
 const LABEL_STYLE = { color: 'var(--dsw-alias-label-tertiary)' }
 const SEPARATOR_STYLE = { color: 'var(--dsw-alias-separator-primary, var(--dsw-alias-label-dimmed))' }
@@ -136,7 +118,13 @@ function statusOf(resolution: ReturnType<typeof resolveProvider>): ModelStatus {
   }
 }
 
-/** One read-only usage line: balance in API mode, 5h/7d quota in coding-plan mode. */
+/**
+ * One read-only usage line: balance in API mode, 5h/7d quota in coding-plan mode.
+ *
+ * It reports the account's **current** reading, so it has exactly one home: the
+ * line under the composer. There is no per-turn copy — an account-level number
+ * cannot honestly describe a single turn (see `slots.ts`).
+ */
 export function StatusLine(props: StatusLineProps) {
   const t = props.t
   const now = useNow(30_000)
@@ -167,23 +155,9 @@ export function StatusLine(props: StatusLineProps) {
   })
   if (fullParts.length === 0) return null
 
-  const compact = props.variant === 'actions'
-  const parts = compact ? compactParts(fullParts) : fullParts
-  // The icon replaces the provider label, so it inherits that label's tooltip.
-  const iconTooltip = fullParts.find(part => part.kind === 'label')?.tooltip
-
   return (
-    <div data-usage-state={props.variant} style={compact ? ACTIONS_STYLE : DOCK_STYLE}>
-      {compact
-        ? withTooltip(
-            <span style={ICON_STYLE}>
-              <IconDataOutline16 size={16} />
-            </span>,
-            iconTooltip,
-            -1,
-          )
-        : null}
-      {parts.map((part, index) => (
+    <div data-usage-state="dock" style={DOCK_STYLE}>
+      {fullParts.map((part, index) => (
         <Fragment key={index}>
           {index > 0 ? (
             <span style={SEPARATOR_STYLE} aria-hidden="true">

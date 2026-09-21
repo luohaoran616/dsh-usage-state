@@ -3,32 +3,32 @@ import assert from 'node:assert/strict'
 
 import { STATUS_LINE_SLOTS } from '../../src/client/slots.ts'
 
-test('the status line mounts in exactly two places', () => {
-  assert.equal(STATUS_LINE_SLOTS.length, 2)
+test('the status line mounts in exactly one place: the composer dock', () => {
+  assert.equal(STATUS_LINE_SLOTS.length, 1)
   assert.deepEqual(
-    STATUS_LINE_SLOTS.map(slot => slot.name).sort(),
-    ['conversation.chat.assistant-actions', 'conversation.composer.dock'],
+    STATUS_LINE_SLOTS.map(slot => slot.name),
+    ['conversation.composer.dock'],
   )
 })
 
-test('each mount point uses its own component variant', () => {
-  const byName = new Map(STATUS_LINE_SLOTS.map(slot => [slot.name, slot]))
-  assert.equal(byName.get('conversation.composer.dock')?.variant, 'dock')
-  assert.equal(byName.get('conversation.chat.assistant-actions')?.variant, 'actions')
-})
-
-test('the chain slot is not used at all', () => {
-  // `conversation.chat.turnTail` is a chain slot: exactly one entry renders, and
-  // the platform's own deliverables plugin plus better-sidebar register there, so
-  // our line vanished on any turn that produced files. Mounting it again would
-  // reintroduce that bug (and double-render on turns we win).
-  assert.equal(
-    STATUS_LINE_SLOTS.some(slot => slot.name === 'conversation.chat.turnTail'),
-    false,
+test('no turn-scoped slot is used', () => {
+  // The reading is account-level: rendering it under every completed turn repeats
+  // one number as if it described that turn, which is the per-turn spend story this
+  // plugin deliberately does not tell. Both turn-scoped slots are also hostile to a
+  // line we want constantly visible:
+  // - `conversation.chat.turnTail` is a chain slot (one winner) claimed by the
+  //   platform's deliverables plugin and better-sidebar, so the line vanished on any
+  //   turn that produced files;
+  // - `conversation.chat.assistant-actions` is rendered inside the platform's turn
+  //   action strip, which is hover-only on every turn but the latest.
+  const turnScoped = STATUS_LINE_SLOTS.filter(
+    slot =>
+      slot.name === 'conversation.chat.turnTail' || slot.name === 'conversation.chat.assistant-actions',
   )
+  assert.deepEqual(turnScoped, [])
 })
 
-test('every mount point carries a stable id and a locale namespace', () => {
+test('the mount point carries a stable id, order and locale namespace', () => {
   for (const slot of STATUS_LINE_SLOTS) {
     assert.equal(slot.id, 'usage-state')
     assert.equal(slot.locale, 'usage-state')

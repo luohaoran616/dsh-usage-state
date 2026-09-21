@@ -140,14 +140,13 @@ export function apply(ctx: ClientContextLike): void {
   const seat = () => ({ usageState: store, settings })
 
   // Mount points live as data (see slots.ts) so the choice stays testable: the
-  // turnTail chain slot is single-winner and already claimed by the platform's
-  // deliverables plugin and better-sidebar, which is why the line used to vanish
-  // on any turn that produced files.
+  // line has one home, the composer dock. Turn-scoped slots are deliberately not
+  // used — a turn is the wrong axis for an account-level reading.
   for (const slot of STATUS_LINE_SLOTS) {
     ctx.slots.inject(slot.name, () =>
       ctx.slots.register(
         { name: slot.name, id: slot.id, order: slot.order, locale: slot.locale, inject: seat },
-        (props: never) => createElement(StatusLine, { ...(props as object), variant: slot.variant } as never),
+        (props: never) => createElement(StatusLine, props),
       ),
     )
   }

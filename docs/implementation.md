@@ -52,7 +52,7 @@
 | `src/client/store.ts` | 浏览器侧读数镜像：失败不覆盖旧数据、并发共享在途调用、模型目录通道 |
 | `src/client/provider-rows.ts` | provider 行构建、模式设置、顺序调整（纯函数） |
 | `src/client/status-text.ts` | `StatusSegment` → 可渲染 parts（含每个部分的 tooltip 文案，纯函数） |
-| `src/client/StatusLine.tsx` | 状态行组件（`dock` / `actions` 两个变体共用；`actions` 即回合动作条，原 turnTail 见 `design-consensus.md` 修订 9），平台 `Tooltip` 承载细节 |
+| `src/client/StatusLine.tsx` | 状态行组件（单一形态，挂在 composer 统计行正下方；账户级读数不放在回合上，见 `design-consensus.md` 修订 13），平台 `Tooltip` 承载细节 |
 | `src/client/SettingsSection.tsx` | 设置页：provider 四态、上/下移、模型清单、高级区（数据源覆盖/端点/凭据名/密钥写入）；卡头部是两列网格，名字过长时只截断灰色的 provider id，控件不换行（见 §3 与 `design-consensus.md` §13 修订 12） |
 | `src/client/locales.ts` | 中英词典（`en` 以 `zh` 的键联合类型约束）+ `LocaleNamespaceMap` 增强 |
 | `src/client/hooks.ts` | `useStoreState` / `useSettingsValue` / `useNow` |
@@ -75,7 +75,7 @@
 | 设置命名空间 `usage-state` + 自定义页 | `host/settings.ts` + `client/SettingsSection.tsx` | `settings`(4) / `render`(14) | 真机（页面可用、四态与排序即时生效） |
 | 卡头部不换行：名字过长不挤走控件（**本轮**） | `client/SettingsSection.tsx` 的三组样式常量（`HEADER` / `NAME` / `CONTROLS`） | `render`（长名用例：网格 + ellipsis + `flex-shrink:0` + `title`） | 结构（SSR 断言）；真机目视待确认 |
 | RPC 通道（Typert） | `host/typert.ts` + `host/service.ts` + `client/index.tsx`（`$mount`） | `typert`(8) / `service`(5) / `entry`(11) / `bundle`(6) | 真机 + **平台 `validateTypertManifest`** |
-| 状态行挂两处（dock 兄弟行 + 回合动作条） | `client/slots.ts`（挂载点即数据）+ `client/index.tsx` + `client/StatusLine.tsx` | `slots`(4) / `render`（SSR） | 真机确认可见；回合行曾因 chain 冲突消失，已改挂 `assistant-actions` 修复（见 §9 第 11 条） |
+| 状态行挂一处（composer 统计行正下方的兄弟行） | `client/slots.ts`（挂载点即数据）+ `client/index.tsx` + `client/StatusLine.tsx` | `slots`(3) / `render`（SSR） | 真机确认可见；曾挂过回合动作条，已按修订 13 移除（平台事实见 §9 第 11 条） |
 | 刷新：回合结束 +2s、空闲 5min、最小 60s | `host/refresh.ts`（时钟注入）+ `src/index.ts` | `refresh`(12)（假时钟）/ `entry` | 单测精确覆盖；真机间接（数值随时间变化） |
 | 失败保留旧值 + 陈旧时间 + ⚠ | `refresh.fail` + `display.describeStatus` + `status-text` | `refresh` / `display`(12) / `status-text`(8) / `render` | 真机（早期 `⚠ … Unavailable` 截图）+ 单测 |
 | 悬浮提示 (A) | `status-text` 生成 tooltip + `StatusLine` 用平台 `Tooltip` | `status-text` / `render`（断言 `data-tooltip`） | 真机（用户确认） |
@@ -99,7 +99,7 @@
 |---|---|---|
 | 1 | 打开设置 → 侧边栏出现「用量状态」 | 页面可打开；中英跟随 DSH 语言设置切换 |
 | 2 | 供应商列表 | 列出 DSH 里配置的供应商（每行含其模型清单）；DeepSeek 显示「自动识别为 DeepSeek · API balance」 |
-| 3 | 保持默认「自动」（或点「API balance」） | 输入框统计行正下方出现一行 `DeepSeek · ¥余额`；每个已完成回合下方也有一行 |
+| 3 | 保持默认「自动」（或点「API balance」） | 输入框统计行正下方出现一行 `DeepSeek · ¥余额` |
 | 4 | 点「立即刷新」 | 数值与时间戳更新 |
 | 5 | 故意用错误密钥（或在设置里清掉） | 保留上次成功值 + `⚠`（多久之前），悬浮显示原因；**不显示 0 或空白** |
 | 6 | 配置 z.ai / Kimi / Sub2API | 出现「数据源 / 接口地址 / 凭据名 / 密钥」区块；填入后 coding-plan 模式显示 `5h x% (倒计时) ▓▓░░░░░░ · 7d y%` |
@@ -121,12 +121,13 @@
 
 **已识别但尚未实现**（讨论见 `design-consensus.md` §13）：
 
-5. **回合行的"固定值 + 较上一回合 Δ"**——目前回合动作条（`assistant-actions`）与 dock 显示同一份"最新读数"，因此老回合下方显示的是当前值而不是当时的值。目标形态已定（固定值 + Δ），**首选** session log + 投影（数据随会话生命周期自动清理、可随会话迁移），但**必须先做可行性实验**（读取侧是否会拒绝"未知类型且不带 `ignorable`"的事件），不行则退回插件自有文件 + LRU/TTL 清理。执行计划见 `plans/` 下的过渡文档（实施完成后删除）。
-6. **点击状态行进入设置页**——设计里写过"可点进设置"，但客户端没有公开的"打开设置面板"服务；(A) 方案改用悬浮提示承载细节，点击行为暂不做。
-7. **`.d.ts` 产物**——`tsdown` 配置 `dts: false`，不产出类型声明（运行时消费不需要）。
-8. **平台兼容性声明**——平台 manifest schema **没有** `compatibility` 字段（`dsh.bundle` / `dsh.client` / `profile` / `configTrees` / `sessionFormatMigration` / `moduleFallback` 才是它认识的）；实测环境是 DSH `0.1.5-rc.2` + Node ≥20（见 `engines`）。cost-meter 的 `dsh.compatibility` / `dshhub` 是市场元数据，未被平台读取。
+1. **点击状态行进入设置页**——设计里写过"可点进设置"，但客户端没有公开的"打开设置面板"服务；(A) 方案改用悬浮提示承载细节，点击行为暂不做。
+2. **`.d.ts` 产物**——`tsdown` 配置 `dts: false`，不产出类型声明（运行时消费不需要）。
+3. **平台兼容性声明**——平台 manifest schema **没有** `compatibility` 字段（`dsh.bundle` / `dsh.client` / `profile` / `configTrees` / `sessionFormatMigration` / `moduleFallback` 才是它认识的）；实测环境是 DSH `0.1.5-rc.2` + Node ≥20（见 `engines`）。cost-meter 的 `dsh.compatibility` / `dshhub` 是市场元数据，未被平台读取。
 
-**明确不做**（与共识一致）：会话成本统计、价格目录、历史账单、预算、峰谷计价、native-search 计费、网关额度、自定义余额端点。
+> 原"回合行的固定值 + Δ"已**结案否决**（账户级读数不放在回合上），见 `design-consensus.md` §13 修订 13；不再是待办项。
+
+**明确不做**（与共识一致）：会话成本统计、价格目录、历史账单、预算、峰谷计价、native-search 计费、网关额度、自定义余额端点；以及**按回合展示账户读数**（同上，见修订 13）。
 
 ## 7. 命令
 
@@ -144,7 +145,7 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
 
 宿主半边改动**需要重启 DSH**；客户端半边改动 `npm run watch` 即可热替换。
 
-## 8. 提交清单（39 次，按阶段）
+## 8. 提交清单（按阶段；完整历史以 `git log` 为准）
 
 | 阶段 | 提交 |
 |---|---|
@@ -153,9 +154,13 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
 | 配置与调度 | `0d4b1f3` 配置模型+注册表+目标解析 · `f31247c` 凭据解析 · `7f3e5b7` 刷新缓存与调度 · `da2b734` 状态行纯逻辑+数据源目录 |
 | 宿主接入 | `e87814e` HTTP 读取层 · `37073ad` typert 侦察报告 · `d5786e0` 配置归一化+设置命名空间 · `bb09bad` RPC 服务面+清单 · `50e2c61` provider 凭据推导+入口装配 |
 | 客户端 | `7af33d4` 词典+文案映射 · `348a3d3` 线上类型归位 · `c90813a` 模型行+状态镜像 · `0e4acfc` 状态行组件+设置页+装配 |
-| 构建与发布 | `8d142a5` tsdown+manifest+lib · `8960efe` adapter 文档+模板 · `20eb8df` 产物级测试+验收清单 · `63db025` LICENSE+安装说明 |
+| 构建与发布 | `8d142a5` tsdown+manifest+lib · `8960efe` adapter 文档+模板 · `20eb8df` 产物级测试+验收清单 · `90ed851` 凭据可写性透传+失焦提交 · `63db025` LICENSE+安装说明 |
 | 真机修复 | `f50f4e7` 平台校验器测试 · `ac9e7e3` SSR 渲染测试+候选凭据名 · `a98d610` 注入 `remote.session` · `47972d1` 空状态 · `3b87781` **`typertRemote` 自引用** · `ccb9adc` provider 级配置 · `8384738` provider 级设置页 |
 | 真机加固 | `c93ed6d` `ctx.get` 免 inject · `74a189b` 界面显示失败原因 · `6f45043` 凭据兜底 · `b6449ff` 陈旧时间 · `445d5dc` z.ai 错误信封+镜像+声明端点 · `002e571` 悬浮提示 · `ab26479` 状态更新 |
+| 数据源扩充 | `c01a64f` OpenCode Zen Go（5h/7d/30d，0.2.0） |
+| 回合行（已按修订 13 移除） | `3566f2d` 记录"有产出回合不显示" · `16527d8` 改挂 `assistant-actions` · `5ec3c96` 动作条紧凑形态 · `34b44df` 图标分隔符 · `84d5772` 文档同步 |
+| 发布后修复 | `e4d40d7` 幽灵 provider 行（0.2.1） · `7adb90e` 三处健壮性 + 不再轮询已删 provider（0.2.2） · `dd37b3d` 设置页卡头部不换行 + 溯源致谢（0.2.3） |
+| 文档一致性 | `b9dc1ad` 文档与实现对齐 · `ccde864` README 按公开仓库规范重写 · `4786f70` 过渡计划（`plans/`） · `118bad4` 统一软引用 · `c48a577` 修订号顺序 · `738285d` 引用修正 · `81ec95e` 修订 12 补记哈希 |
 
 ## 9. 从真机调试里学到的平台事实（下次直接复用）
 
@@ -168,6 +173,19 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
 7. **Node 的类型剥离不支持 `.tsx`/构造器参数属性/枚举**：`src` 避开这些写法，`.tsx` 由测试钩子用项目自带 TypeScript 转译。
 8. **浏览器包不能在 Node 里 import**（CSS 模块 + 未声明的传递依赖）→ 渲染测试用模块钩子替换 primitives 桩件。
 9. **z.ai 用 HTTP 200 + `{success:false,code:1000,msg}` 表达鉴权失败**；区域站点互不认对方的 key。
-10. **外部插件事件在会话日志里是有设计支持的**（`ignorable: true` 是兼容机制），但 0.1.5-rc.2 的 `Session.append()` 没有参数能设置该标记——用前必须实验验证。
-11. **chain 插槽只有一个赢家，且回合动作条在历史回合是悬停显示**：`conversation.chat.turnTail` 是 chain（`dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此，`priority: -1`），任何产出文件的回合都会把它们之一选为赢家，其他条目**不会被询问**；`select` 又被契约要求是纯函数，无法感知"别人要认领"而让路。改用 list 槽 `conversation.chat.assistant-actions` 可避免抢占，但它由平台渲染在**回合动作条**内（ui-chat 只在 `closing.finalNode.messageId` 上渲染一次/回合），而该条在**非最新回合是 `opacity: 0` + `:hover` 才显示**（平台自己的每回合 token/耗时面板也在那里）。要"每个历史回合都常显"，只能用会话事件定义 + 自有 transcript 节点（见 `plans/` 的 pinning 计划）。
-    **补充（同一处集成实测）**：`MessageIconActions.extraActions` 的位置由平台固定——类型注释原文 *"placed between the built-in copy and branch controls"*，即我们默认会落在复制按钮与分支按钮之间。因为该行是 flex 容器、我们的条目是直接子项，所以用 CSS `order: 1` 把它移到**行尾**（`Ran for …` 与时间之后）才是合理位置；并且动作条一行只有 28px，所以 `actions` 变体做了减法（`compactParts`：标签换成模型图标 `IconDataOutline16`（与模型选择器同一图标）、只留百分比、倒计时与进度条留在悬停提示里）。
+10. **外部插件事件在 0.1.5-rc.2 是"设计上可读、实际上不可写"**：会话日志的读取侧**支持**未知类型——只要事件带 `SessionEvent.ignorable: true` 就安全跳过（`KNOWN_SESSION_EVENT_TYPES` 的注释明确说仓库外插件事件"by construction"不在名单里，该标记就是兼容机制）。但**写侧没有任何入口能设置它**：`Session.append(type, data, opts)` 只透传 `sourceEventSeqs` / `surfaceOp`，构造出的信封只有 `type/seq/time/data`；`materializeAppendBatch()` 只做 JSON 快照与冻结；`SessionHandle.append()` 是持久化层直写（要求 seq 连续），绕过活动会话日志会让内存日志与存储日志错位，且读取侧照样拒绝。
+    **实测（离线，2026-09-21，`dsh-session` + `dsh-session-persistence` 均 `0.1.5-rc.2`）**：`Session.append('usage-state/turn-usage', …)` 写入成功但信封无 `ignorable` → `validateStoredEvents(meta, [event])` 抛 `SessionFormatUnsupportedError`（*"contains event type … unknown to this harness and not marked ignorable; refusing to interpret the log"*）；手工补 `ignorable: true` 后校验通过（证明标记有效、只缺写入口）；对照组 `command/run` 正常通过。
+    **结论**：插件**不得**往会话日志追加自有类型事件——日志是 append-only，写进去无法撤销，且会让别人的读取器拒绝重建整个会话。任何"数据跟着会话生命周期走/随会话迁移"的需求，在当前平台版本都没有合法落点。平台也明确否决过"事件名注册"方案。**若将来版本给 `append` 加上该标记（或提供注册通道），这条才需要重写。**
+    复现（用平台自己的包，无需启动 DSH；`@deepseek-ai/dsh-session` 与 `-persistence` 未列为本仓库依赖，需从 DSH 安装目录借 `node_modules`）：
+
+    ```js
+    const { Session, SessionId } = await import('@deepseek-ai/dsh-session')
+    const { validateStoredEvents } = await import('@deepseek-ai/dsh-session-persistence')
+    const session = Session.create(SessionId('probe'), [], undefined, 0)
+    const event = session.append('usage-state/turn-usage', { probe: true })
+    Object.keys(event)                    // ['type','seq','time','data'] —— 没有 ignorable
+    validateStoredEvents(session.header, [event])  // throws SessionFormatUnsupportedError
+    validateStoredEvents(session.header, [{ ...event, ignorable: true }])  // 通过
+    ```
+11. **回合级插槽都不适合承载常显的行**：`conversation.chat.turnTail` 是 chain（单赢家，`dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此），任何产出文件的回合都会把它们之一选为赢家，其他条目**不会被询问**，`select` 又被契约要求是纯函数、无法让路；`conversation.chat.assistant-actions` 是 list 槽（无抢占），但由平台渲染在**回合动作条**内，而该条在**非最新回合是 `opacity: 0` + `:hover` 才显示**（平台自己的每回合 token/耗时面板也在那里；`MessageIconActions.extraActions` 的位置由平台固定——类型注释原文 *"placed between the built-in copy and branch controls"*，且整条只有 28px 高）。
+    这条事实与"要不要在回合上展示账户读数"是两件事：后者已按 `design-consensus.md` 修订 13 **否决**（账户级读数不属于回合），因此本插件现在只挂 `conversation.composer.dock`；上面这些平台行为记录下来，是为了下次有人想在回合动作条里放东西时不必重新踩一遍。

@@ -2,9 +2,9 @@
 
 **中文** | [English](README.en.md)
 
-在 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai) 里一眼看到你的**账户余额**或**套餐额度**——就在输入框下方和每个已完成回合的下方。
+在 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai) 里一眼看到你的**账户余额**或**套餐额度**——就在输入框统计行的正下方。
 
-> A minimal DSH plugin that shows your account **balance** (API mode) or **coding-plan quota** (5h / 7d / 30d) for the model you are using, right under the composer and every completed turn.
+> A minimal DSH plugin that shows your account **balance** (API mode) or **coding-plan quota** (5h / 7d / 30d) for the model you are using, right under the composer.
 
 ```
 输入框统计行下方：      z.ai / GLM · 5h 12% (4h0m) ▓▓▓░░░░░ · 7d 59% (3d17h) ▓▓▓▓▓░░░
@@ -16,31 +16,39 @@
 
 - **零配置可用**：按 provider 自动识别该用哪个数据源与模式，DSH 里配过的密钥会被自动复用，不填任何东西就能看到读数。
 - **账户级配置**：余额与额度是账户级的，所以每个供应商只配一次（`自动` / `API` / `Coding Plan` / `隐藏`），模型清单只作展示。
-- **两处展示**：输入框统计行的正下方一行，以及每个已完成回合的下方一行；两处共用同一套解析规则。
+- **始终可见一行**：固定在输入框统计行的正下方（原生统计行与其弹窗原样保留、不做替换），不需要悬停或点击。
 - **失败不撒谎**：请求失败时保留上次成功值并标明「多久之前 + ⚠」，**绝不显示 0 或伪造数据**；密钥无效、接口报错、网络不可达会分别给出可读原因。
 - **悬浮提示**：每段文字悬停显示一行放不下的信息——数据源与模式、窗口的绝对重置时刻、余额的赠送/充值构成、失败原因与原始消息。
 - **中英双语**：跟随 DSH 的语言设置（`locale.preference`），设置页与状态行都不含硬编码文案。
-- **只做显示**：没有会话成本统计、价格目录、历史账单、预算、峰谷计价——`dsh-cost-meter` 里除展示之外的逻辑这里一律不做。
+- **只做显示**：只有余额与额度，没有成本统计、价格目录、历史账单、预算、峰谷计价。
 
 ## 安装
 
+**前置条件**：DSH `0.1.5-rc.2` 或更高、Node ≥ 20，装进 `web` profile。仓库**自带预构建的 `lib/`**，安装时没有构建步骤。
+
 ```bash
+# 1) 安装
 dsh plugin --profile web add github:takboo/dsh-usage-state
-```
 
-装好后**重启 DSH**（插件的 bundle patch 只在启动时读取）。卸载：
+# 2) 重启 DSH —— 插件的 bundle patch 只在启动时读取
 
-```bash
+# 3) 卸载
 dsh plugin --profile web remove dsh-usage-state
 ```
 
-开发时可直接装本地目录：`dsh plugin --profile web add /path/to/dsh-usage-state`。
+本地开发时可直接装目录（宿主半边改完同样要重启 DSH）：
+
+```bash
+dsh plugin --profile web add /path/to/dsh-usage-state
+```
+
+装好后界面没有出现？见 [`docs/adapters.md`](docs/adapters.md) 末尾的排查表。
 
 ## 快速开始
 
 1. 打开 **设置 → 用量状态**：DSH 里配置的每个供应商一行。
 2. 保持默认的 **自动** 即可（它会识别数据源与主模式）；需要时改成 `API` / `Coding Plan` / `隐藏`，或用 ↑↓ 调整顺序。
-3. 该供应商的账户读数会出现在输入框下方与每个回合下方。
+3. 该供应商的账户读数会出现在输入框统计行的正下方。
 
 若某个数据源需要端点或密钥（例如自建的 Sub2API、或尚未配置的 z.ai），展开该行的 **高级**：可覆盖数据源、填接口地址、指定凭据名、粘贴密钥（写入 DSH 凭据库）。
 
@@ -62,12 +70,7 @@ dsh plugin --profile web remove dsh-usage-state
 
 ## 显示与交互
 
-**位置**：两处，各司其职。
-
-| 位置 | 形态 | 可见性 |
-|---|---|---|
-| `conversation.composer.dock`（统计行正下方，几何与原生行对齐） | 完整：标签 · 余额/百分比 · 重置倒计时 · 迷你进度条 | 始终可见（实时值） |
-| `conversation.chat.assistant-actions`（回合动作条**最右侧**，排在 `Ran for …` 与时间之后） | 紧凑：模型图标 · 余额/百分比（倒计时与进度条只在悬停提示里） | **最新回合常显；历史回合悬停显示**（平台对动作条的规则，它自己的每回合 token/耗时面板同样如此） |
+**位置**：输入框统计行的正下方（与原生统计行的几何对齐，跟随 DSH 的会话内容宽度）。读数**始终可见**，不依赖悬停，也不需要点击。
 
 **元素**：供应商标签 · 余额金额 + 币种 · 各窗口（5h / 7d / 30d）已用百分比 · 重置倒计时 · 迷你进度条 · 阈值变色（默认 ≥80% 黄、≥95% 红，可在设置里改）。
 
@@ -99,13 +102,13 @@ dsh plugin --profile web remove dsh-usage-state
 
 - 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20（`engines`）。
 - 通过 GitHub 安装，**不发布到 npm**（`private: true`）。
-- 版本 `0.2.3`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
+- 版本 `0.3.0`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
 
 ## 已知限制
 
 - **Kimi、Sub2API 未经真机验证**（本机无凭据），代码与单测已就绪；Sub2API 的 `/v1/usage` 属未文档化接口，已按易错接口做容错。
-- **回合行显示的是"当前值"而非"该回合结束时的值"**——两处读数同源；且历史回合需要悬停查看（动作条是平台的悬停区域）。要固定成"当时的值 + 较上一回合的变化"并让历史回合常显，需要会话事件 + 自有节点（方案见 `plans/` 下的过渡文档）。
 - **点击状态行不会打开设置**（客户端没有公开的"打开设置面板"服务）；细节通过悬浮提示呈现。
+- **只在输入框上方展示，不覆盖历史**：状态行给出的是账户**当前**读数；插件不按回合、也不按时间保存历史读数，因此翻看旧回合时看不到"当时的余额"。若将来要做，会是以时间轴（而不是回合）为口径的单独决定。
 - 完整清单见 [`docs/implementation.md`](docs/implementation.md) §6。
 
 ## 开发

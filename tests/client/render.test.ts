@@ -130,7 +130,6 @@ test('the status line renders a balance for the session model', () => {
   const html = renderToStaticMarkup(
     h(StatusLine, {
       t,
-      variant: 'dock',
       usageState: store,
       settings: settingsWith(config),
       useProjection: projectionOf({ provider: 'deepseek-official', model: 'deepseek-flash' }),
@@ -145,57 +144,10 @@ test('the status line renders a balance for the session model', () => {
   assert.match(html, /data-tooltip="Source DeepSeek · Mode API balance"/)
 })
 
-test('the completed-turn variant is compact: model icon, percentages only, at the end of the row', () => {
-  const config = configWith({ zai: { mode: 'coding-plan' } })
-  const catalog: SourceCatalog = [...CATALOG]
-  const snapshot = {
-    sourceId: 'zai',
-    mode: 'coding-plan' as const,
-    balances: [],
-    windows: [
-      { id: '5h', usedPercent: 42, resetsAt: Date.now() + 4 * 3600_000 + 60_000 },
-      { id: '7d', usedPercent: 96 },
-    ],
-    fetchedAt: 1_000,
-  }
-  const props = {
-    t,
-    usageState: storeWith({ catalog, snapshots: { 'zai:coding-plan': snapshot } }),
-    settings: settingsWith(config),
-    useProjection: projectionOf({ provider: 'zai', model: 'glm-4.6' }),
-  }
-
-  const html = renderToStaticMarkup(h(StatusLine, { ...props, variant: 'actions' }))
-
-  assert.match(html, /data-usage-state="actions"/)
-  // The provider label becomes the icon the model seat uses...
-  assert.match(html, /data-icon="data"/)
-  assert.doesNotMatch(html, />z\.ai \/ GLM</)
-  // ...and the row keeps only the percentages.
-  assert.match(html, /5h 42%/)
-  assert.match(html, /7d 96%/)
-  assert.match(html, /order:1/)
-  assert.doesNotMatch(html, /\(4h\d+m\)/, 'the countdown belongs to the tooltip in this variant')
-  assert.doesNotMatch(html, /[\u2588\u2591]/, 'the progress bar belongs to the dock row')
-  assert.doesNotMatch(html, /max-width:var\(--dsh-chat-content-width\)/)
-  // Threshold colouring still applies, and every detail stays on hover.
-  assert.match(html, /--dsw-alias-state-error-primary/)
-  assert.match(html, /data-tooltip="[^"]*Resets at [^"]*Source z\.ai \/ GLM · Mode Coding plan"/)
-
-  // The dock row keeps the full form: label + countdown + progress bar.
-  const dock = renderToStaticMarkup(h(StatusLine, { ...props, variant: 'dock' }))
-  assert.match(dock, />z\.ai \/ GLM</)
-  assert.match(dock, /\(4h\d+m\)/)
-  assert.match(dock, /[\u2588\u2591]/)
-  assert.match(dock, /max-width:var\(--dsh-chat-content-width\)/)
-  assert.doesNotMatch(dock, /data-icon="data"/)
-})
-
 test('a hidden or unselected model renders nothing at all', () => {
   const hidden = settingsWith(configWith({ p: { mode: 'hidden' } }))
   const props = {
     t,
-    variant: 'dock' as const,
     usageState: storeWith({ catalog: CATALOG }),
     settings: hidden,
     useProjection: projectionOf({ provider: 'p', model: 'm' }),
@@ -210,7 +162,6 @@ test('a provider nobody can map says so instead of showing a number', () => {
   const html = renderToStaticMarkup(
     h(StatusLine, {
       t,
-      variant: 'dock',
       usageState: storeWith({ catalog: CATALOG }),
       settings: settingsWith(configWith()),
       useProjection: projectionOf({ provider: 'mystery', model: 'unconfigured' }),
@@ -224,7 +175,6 @@ test('a self-hosted provider without an endpoint asks for one', () => {
   const html = renderToStaticMarkup(
     h(StatusLine, {
       t,
-      variant: 'dock',
       usageState: storeWith({ catalog: CATALOG }),
       settings: settingsWith(configWith()),
       useProjection: projectionOf({ provider: 'sub2api', model: 'gpt-5' }),
@@ -239,7 +189,6 @@ test('a stale reading stays visible and is marked', () => {
   const html = renderToStaticMarkup(
     h(StatusLine, {
       t,
-      variant: 'dock',
       usageState: storeWith({
         catalog: CATALOG,
         snapshots: {

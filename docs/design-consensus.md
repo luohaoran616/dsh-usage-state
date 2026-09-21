@@ -46,11 +46,9 @@
 
 ## 5. 展示
 
-两个位置，**共用同一套数据解析规则**：
+**只有一个位置**：`conversation.composer.dock`——**自己的 id、`order: 1`，紧贴原生统计行正下方另起一行**。原 `StatsPills`（`id: "stats"`）与其悬浮详情弹窗**原样保留**，不做影子替换、不复刻。
 
-1. ~~`conversation.chat.turnTail`（链式插槽）~~ → **已改挂 `conversation.chat.assistant-actions`**（修订 9）。
-   原设计选 turnTail 是因为它"在回合动作行之前"，实现后才发现它是**单赢家**的 chain：平台自带的 `dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此，任何产出文件/交付物的回合都会被它们先认领，我们的行随之消失。现落在 list 槽 `assistant-actions`（平台只在该回合收尾的助手消息上渲染一次），代价是该条在**非最新回合悬停才显示**。
-2. `conversation.composer.dock`：**自己的 id、`order: 1`，紧贴原生统计行正下方另起一行**。原 `StatsPills`（`id: "stats"`）与其悬浮详情弹窗**原样保留**，不做影子替换、不复刻。
+原设计还有一个"每个已完成回合下方"的位置（原定 `conversation.chat.turnTail`，实现时改挂 `conversation.chat.assistant-actions`，见修订 9），**已按修订 13 移除**：余额/额度是账户级的，贴在回合上会把"账户当前读数"读成"这一回合的花费"，而那正是本插件明确不做的成本归因。
 
 几何对齐（照抄原生行，缺变量时优雅退化）：
 
@@ -66,7 +64,6 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 
 - **数据归属**：跟随**会话当前选择的模型** → 解析出它的数据源（provider + 模式）→ 显示该源的数据。会话中途切换模型，整行跟着换。
 - **显示元素**：标签（provider / 模型名）· 5h % · 7d % · 重置倒计时 · 余额金额 + 币种 · 阈值变色 · 迷你进度条。
-  两处形态不同（修订 9）：输入框那行是完整形态；回合动作条那行是**紧凑形态**（标签换成模型图标、只留金额/百分比，倒计时与进度条只在悬停提示里，并靠 CSS `order: 1` 排到 `Ran for …` 之后）。
 - **口径**：**已用百分比**（与 z.ai / Claude 官方一致）。API 模式显示余额，Coding Plan 模式显示 5h/7d。
 - **降级**：未配置 → 灰色「未配置」；自建源缺端点 → 「需要先填写接口地址」；请求失败 → **保留上次成功值 + 陈旧标记（多久之前 + ⚠）**；**绝不显示 0 或伪造数据**。
 - 阈值默认 ≥80% 黄、≥95% 红；进度条默认开、可在设置关闭（作为可配置项实现）。
@@ -101,7 +98,7 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 
 1. 本仓库开发 → 本地装入 web profile（`~/.dsh/profiles/web`）。
 2. 设置页能看到供应商清单、密钥检测结果、逐供应商四态（自动/API/Coding Plan/隐藏）、上/下移排序。
-3. DeepSeek 余额出现在 composer 行与回合动作条（`assistant-actions`，原 turnTail 见修订 9）。
+3. DeepSeek 余额出现在 composer 统计行正下方（`conversation.composer.dock`；原"回合动作条"位置已按修订 13 移除）。
 4. 刷新插件/重启 DSH 后配置保留。
 5. 验收通过后**卸载 `dsh-cost-meter`** ✅ 已完成，确认状态行无重复。
 6. `gh` 建仓推送 `takboo/dsh-usage-state`，验证 `dsh plugin add github:takboo/dsh-usage-state` 可装。
@@ -114,13 +111,13 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 - **composer 行的对齐依赖平台内部 CSS 变量**（`--dsh-chat-content-width` 等），非公开契约 → 变量缺失时必须优雅退化，不能错版。
 - **仍未经真机验证**：Kimi（Moonshot 余额 + Kimi Code 窗口）、Sub2API（需要自建实例地址）、阈值变色的视觉、手写密钥写入→生效。详见 [`implementation.md`](implementation.md) §6。
 - **凭据服务的可见性**：profile 根级插入的行未必能拿到 `credentials` 服务（作用域），因此加了直读兜底；来源标注可用来判断平台路径是否真的在工作，若确认可用应删掉兜底。
-- **回合行的固定值**：目前回合动作条（`assistant-actions`，原 turnTail）与 dock 显示同一份"最新读数"，老回合下方显示的是当前值。方案（C2+D：固定值 + 较上一回合 Δ）已定，持久化方式待定，见 §13 修订 8。
+- ~~**回合行的固定值**~~：该位置已按修订 13 移除（账户级读数不属于回合），不再是待办项。
 
 ## 12. 实现顺序
 
 1. 脚手架 + 设置命名空间 + 自定义设置页（模型清单 / 三态 / 排序 / 密钥状态与写入）。
 2. 宿主 adapter 框架 + DeepSeek 余额 + RPC 快照通道。
-3. 客户端状态行（composer 兄弟行 + 回合动作条；原计划挂在 turnTail，后按修订 9 改挂 `assistant-actions`）+ 中英词典。
+3. 客户端状态行（composer 统计行正下方的兄弟行）+ 中英词典。原计划的"回合动作条"位置已按修订 13 移除。
 4. z.ai / Kimi / sub2api 适配器 + 解析单测。
 5. 本地装入与验收 → 卸载 cost-meter → GitHub 发布。
 
@@ -142,13 +139,13 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
    真机上宿主行拿不到 `credentials` 服务（症状：一切都对但界面只说"未配置"）。兜底按平台自身优先级直读 env → `.credentials.yaml`，并标注来源 `(direct)`；若确认平台路径可用应删除。
 7. **RPC 客户端读取方式**（`c93ed6d`）
    原文示意用 `ctx.remote.<ns>`。但属性访问要求该服务已在 `inject` 列表中，而 `remote.usageState` 是本插件 `$mount` 后才贡献的（写进 inject 会死等）。改用 `ctx.get('remote.usageState')`。
-8. **回合行的"固定值 + Δ"**（已定方向，待实现）
-   用户观察到 turnTail 与 dock 值同步，"不固定就没有意义"。形态定为固定值 + 较上一回合的变化量；**持久化首选 session log + 投影**（随会话生命周期自动清理、可随会话迁移、平台原生形状），备选是插件自有文件 + LRU/TTL 清理。
-   动工前必须先做一次可行性实验：真实的读取侧校验器（`dsh-session-persistence` 的 `validateStoredEvents`）是否会拒绝"未知类型且不带 `ignorable`"的事件——`Session.append()` 在 0.1.5-rc.2 没有参数能设置该标记，若会被拒绝则绝不可写入（append-only，写进去无法撤销）。
-   执行计划见 `plans/` 下的过渡文档（实施完成后删除，故此处不写死链接）。
-9. **回合行落点：turnTail → assistant-actions**（该 BUG 的过渡文档已按约定删除）
-    真机发现"有 `Produced …` 的回合没有用量行"：`conversation.chat.turnTail` 是 chain，单赢家，被平台 deliverables 与 better-sidebar 占用。改为 list 槽 `conversation.chat.assistant-actions`，无抢占；并把挂载点抽成 `src/client/slots.ts` 数据 + 测试守卫（防止再把 turnTail 加回来）。
-    **代价（需知悉）**：动作条由平台控制显隐——最新回合常显，**历史回合 `opacity:0` + 悬停才显示**（平台自己的每回合 token/耗时面板同处）。若要历史回合也常显，必须注册会话事件定义 + 自有 transcript 节点，即修订 8 的 pinning 工作。
+8. **回合行的"固定值 + Δ"**（已**否决**，见修订 13）
+   用户原观察到回合动作条与 dock 的值同步，"不固定就没有意义"；方向因此定为"该回合结束时的固定值 + 较上一回合的变化量"，持久化首选 session log + 投影。
+   动工前的可行性实验（读取侧校验器会不会拒绝"未知类型且不带 `ignorable`"的事件）给出否定答案：`Session.append()` 写未知类型**不报错但信封里没有 `ignorable`**（只有 `type/seq/time/data`），真实读取侧 `validateStoredEvents` 以 `SessionFormatUnsupportedError` **拒绝**重建该会话；而 0.1.5-rc.2 的写侧没有任何入口能设置该标记（`append()` 只透传 `sourceEventSeqs`/`surfaceOp`；`materializeAppendBatch()` 只做 JSON 快照与冻结；`SessionHandle.append()` 是持久化层直写、要求 seq 连续，绕过活动会话日志会让内存日志与存储日志错位，且读取侧仍会拒绝）。→ 路线 A 作废，且**不得写入**（append-only，写进去无法撤销）。
+   随后重新追问需求本身：Δ 是**账户级、按回合边界采样**的量（同一账户的并发会话、子代理、别的客户端都会混进来），必须靠"较上一回合（账户级，含其它消耗）"这类文案才不至于被读成"本回合花费"——而那正是本插件明确不做的成本归因。所以连备选的文件持久化路线也不走，直接**移除该位置**（修订 13）。
+9. **回合行落点：turnTail → assistant-actions**（该落点已按修订 13 整体移除）
+   真机发现"有 `Produced …` 的回合没有用量行"：`conversation.chat.turnTail` 是 chain，单赢家，被平台 deliverables 与 better-sidebar 占用。改为 list 槽 `conversation.chat.assistant-actions`，无抢占；并把挂载点抽成 `src/client/slots.ts` 数据 + 测试守卫（防止再把 turnTail 加回来）。
+   **代价（当时需知悉，现已无关）**：动作条由平台控制显隐——最新回合常显，**历史回合 `opacity:0` + 悬停才显示**（平台自己的每回合 token/耗时面板同处）。
 
 10. **`.d.ts` 与兼容性声明**（本文档校正）
    原文写"产出 `.d.ts`"与"声明 `dsh >= 0.1.5-rc.2`"，实现都不成立：`dts: false`，且平台 manifest schema 没有 `compatibility` 字段。已按事实改写。
@@ -163,3 +160,9 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
    真机暴露两件事：**其一**，那对省略号是死代码——既没有 `white-space: nowrap`，名字块作为 flex item 又在"先换行、后压缩"的策略下永不被压到溢出，所以一辈子不会触发；**其二**，名字一长整簇控件就被折到第二行左侧：同一页里 `zai-coding-cn` 的按钮贴右、`opencode-go-ds41` 的按钮掉到下一行，对齐随名字长度漂移（用户截图）。
    现决策：头部改为 `display:grid; grid-template-columns: minmax(0,1fr) auto`，名字列 `min-width:0 + overflow:hidden + text-overflow:ellipsis + white-space:nowrap`，控件列 `flex-shrink:0`。**永不换行**，省略号才真正生效；因为 provider id 排在粗体显示名之后，被截断的永远是冗余的那一半，用 `title` 属性兜住全文（不引 `Tooltip`，免得为悬停多包一层 DOM 破坏网格）。共享的 `ROW` 不动：它的 `wrap` 对凭据面板那些行仍然是必要的。
    **代价（需知悉）**：面板很窄时名字列会被压到 `名字 + id` 一起截断。若实测仍嫌紧，下一步是把「自动 / Coding Plan / 隐藏」收成一个菜单、或把 ↑↓ 移进「高级」——那会推翻修订 3 的结论，必须一并改写它。
+
+13. **移除回合行：账户级读数不放在回合上**（结案；结案提交见 `implementation.md` §8）
+    修订 8/9 的方向是"回合行显示该回合的固定值 + Δ"。第 0 步实验先否决了最省事的持久化路线（见修订 8），随后重新追问需求本身，得到的结论是**这个位置本身就不该存在**：余额/额度是**账户级**的，而一个回合是账户级读数无法诚实描述的坐标轴——同一份数字贴在每个历史回合下面，要么与 dock 同源（重复且误导：旧回合下方显示的是当前值），要么被读成"这一回合花了多少"（本插件明确不做的成本归因）。
+    现决策：**移除该位置**，状态行只有一个家——`conversation.composer.dock`。`src/client/slots.ts` 退化为单一挂载点 + 测试守卫（同时禁止 `conversation.chat.turnTail` 与 `conversation.chat.assistant-actions` 被重新加回），为动作条做的减法（`compactParts`、`ACTIONS_STYLE`、CSS `order: 1`、模型图标替代标签）全部删除。
+    **代价（需知悉）**：翻旧回合时不再能看到"当时的读数"。若将来仍想要账户的历史轨迹，诚实的形态是**按时间**而不是按回合（例如 dock 行悬停给出最近几条带本地时间的读数）；那属于本插件"不做历史趋势图/面板"之外的新决定，需要单独讨论并新写一条修订，不能顺手加回。
+    **顺带沉淀的平台事实**：外部插件事件在 DSH 0.1.5-rc.2 **不可写**（见 `implementation.md` §9），这是"回合轨迹跟着会话走"这类需求的硬约束。
