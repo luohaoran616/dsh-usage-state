@@ -161,7 +161,7 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
    现决策：头部改为 `display:grid; grid-template-columns: minmax(0,1fr) auto`，名字列 `min-width:0 + overflow:hidden + text-overflow:ellipsis + white-space:nowrap`，控件列 `flex-shrink:0`。**永不换行**，省略号才真正生效；因为 provider id 排在粗体显示名之后，被截断的永远是冗余的那一半，用 `title` 属性兜住全文（不引 `Tooltip`，免得为悬停多包一层 DOM 破坏网格）。共享的 `ROW` 不动：它的 `wrap` 对凭据面板那些行仍然是必要的。
    **代价（需知悉）**：面板很窄时名字列会被压到 `名字 + id` 一起截断。若实测仍嫌紧，下一步是把「自动 / Coding Plan / 隐藏」收成一个菜单、或把 ↑↓ 移进「高级」——那会推翻修订 3 的结论，必须一并改写它。
 
-13. **移除回合行：账户级读数不放在回合上**（结案；结案提交见 `implementation.md` §8）
+13. **移除回合行：账户级读数不放在回合上**（`c644e4c`，0.3.0）
     修订 8/9 的方向是"回合行显示该回合的固定值 + Δ"。第 0 步实验先否决了最省事的持久化路线（见修订 8），随后重新追问需求本身，得到的结论是**这个位置本身就不该存在**：余额/额度是**账户级**的，而一个回合是账户级读数无法诚实描述的坐标轴——同一份数字贴在每个历史回合下面，要么与 dock 同源（重复且误导：旧回合下方显示的是当前值），要么被读成"这一回合花了多少"（本插件明确不做的成本归因）。
     现决策：**移除该位置**，状态行只有一个家——`conversation.composer.dock`。`src/client/slots.ts` 退化为单一挂载点 + 测试守卫（同时禁止 `conversation.chat.turnTail` 与 `conversation.chat.assistant-actions` 被重新加回），为动作条做的减法（`compactParts`、`ACTIONS_STYLE`、CSS `order: 1`、模型图标替代标签）全部删除。
     **代价（需知悉）**：翻旧回合时不再能看到"当时的读数"。若将来仍想要账户的历史轨迹，诚实的形态是**按时间**而不是按回合（例如 dock 行悬停给出最近几条带本地时间的读数）；那属于本插件"不做历史趋势图/面板"之外的新决定，需要单独讨论并新写一条修订，不能顺手加回。
