@@ -4,7 +4,7 @@
 
 在 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai) 里一眼看到你的**账户余额**或**套餐额度**——就在输入框下方和每个已完成回合的下方。
 
-> A minimal DSH plugin that shows your account **balance** (API mode) or **coding-plan quota** (5h / 7d) for the model you are using, right under the composer and every completed turn.
+> A minimal DSH plugin that shows your account **balance** (API mode) or **coding-plan quota** (5h / 7d / 30d) for the model you are using, right under the composer and every completed turn.
 
 ```
 输入框统计行下方：      z.ai / GLM · 5h 12% (4h0m) ▓▓▓░░░░░ · 7d 59% (3d17h) ▓▓▓▓▓░░░
@@ -67,9 +67,9 @@ dsh plugin --profile web remove dsh-usage-state
 | `conversation.composer.dock`（统计行正下方，几何与原生行对齐） | 完整：标签 · 余额/百分比 · 重置倒计时 · 迷你进度条 | 始终可见（实时值） |
 | `conversation.chat.assistant-actions`（回合动作条**最右侧**，排在 `Ran for …` 与时间之后） | 紧凑：模型图标 · 余额/百分比（倒计时与进度条只在悬停提示里） | **最新回合常显；历史回合悬停显示**（平台对动作条的规则，它自己的每回合 token/耗时面板同样如此） |
 
-**元素**：供应商标签 · 余额金额 + 币种 · 5h / 7d 已用百分比 · 重置倒计时 · 迷你进度条 · 阈值变色（默认 ≥80% 黄、≥95% 红，可在设置里改）。
+**元素**：供应商标签 · 余额金额 + 币种 · 各窗口（5h / 7d / 30d）已用百分比 · 重置倒计时 · 迷你进度条 · 阈值变色（默认 ≥80% 黄、≥95% 红，可在设置里改）。
 
-**口径**：百分比一律是**已用**（与 z.ai / Claude 官方一致）；API 模式显示余额，Coding Plan 模式显示 5h / 7d。
+**口径**：百分比一律是**已用**（与 z.ai / Claude 官方一致）；API 模式显示余额，Coding Plan 模式显示该数据源实际提供的窗口（z.ai 与 Sub2API 是 5h / 7d，OpenCode Zen Go 多一个 30d）。
 
 **降级**：
 
@@ -97,7 +97,7 @@ dsh plugin --profile web remove dsh-usage-state
 
 - 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20（`engines`）。
 - 通过 GitHub 安装，**不发布到 npm**（`private: true`）。
-- 版本 `0.2.1`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
+- 版本 `0.2.2`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
 
 ## 已知限制
 

@@ -67,13 +67,31 @@ export function resolveTargets(
     })
   }
 
+  /**
+   * The live runtime's provider ids, when we have them. An empty list means "could
+   * not ask" (the `llm` service is missing on early ticks), not "nothing exists", so
+   * it must not suppress the configured entries.
+   */
+  const live = options.providers !== undefined && options.providers.length > 0 ? new Set(options.providers) : undefined
+  /**
+   * Whether a stored entry may still produce requests. The entry itself is kept — a
+   * provider that comes back keeps the mode the user chose for it — but a provider
+   * DSH no longer has must not keep an account being polled behind an invisible row.
+   */
+  const pollable = (provider: string): boolean => live === undefined || live.has(provider)
+
   // Legacy per-model entries first: an older document's explicit choices still win.
   for (const entry of config.models) {
     if (entry.mode === 'hidden' || entry.sourceId === null) continue
+    if (!pollable(entry.provider)) continue
     push(entry.sourceId, entry.mode)
   }
 
-  const providers = new Set<string>([...config.order, ...Object.keys(config.providers), ...(options.providers ?? [])])
+  const providers = new Set<string>()
+  for (const provider of [...config.order, ...Object.keys(config.providers)]) {
+    if (pollable(provider)) providers.add(provider)
+  }
+  for (const provider of options.providers ?? []) providers.add(provider)
   for (const provider of providers) {
     const resolution = resolveProvider({
       provider,

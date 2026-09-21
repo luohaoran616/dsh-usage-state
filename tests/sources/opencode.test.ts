@@ -32,6 +32,8 @@ test('opencode does not double the /zen/go path when the endpoint arrived alread
     'https://opencode.ai/zen/go/v1',
     'https://opencode.ai/zen/go/v1/',
     'https://opencode.ai/zen/go',
+    'https://opencode.ai/zen/go/v1/usage',
+    'https://opencode.ai/zen/go/usage',
   ]) {
     assert.equal(opencode.request({ mode: 'coding-plan', apiKey: 'k', baseUrl }).url, USAGE_URL, baseUrl)
   }
@@ -39,6 +41,26 @@ test('opencode does not double the /zen/go path when the endpoint arrived alread
     opencode.request({ mode: 'coding-plan', apiKey: 'k', baseUrl: 'https://opencode.ai/zen/go/v1', pinnedBaseUrl: true }).url,
     USAGE_URL,
   )
+})
+
+test('opencode normalizes every reset-time form, not just the ISO one it returns today', () => {
+  const unixSeconds = 1_789_985_323
+  const unixMillis = 1_789_985_323_776
+  const cases: Array<[unknown, number]> = [
+    ['2026-09-21T10:08:43.658Z', 1_789_985_323_658],
+    [unixSeconds, unixSeconds * 1000],
+    [unixMillis, unixMillis],
+    [String(unixSeconds), unixSeconds * 1000],
+  ]
+
+  for (const [resetsAt, expected] of cases) {
+    const reading = opencode.parse({ usage: { rolling: { percent: 1, resetsAt } } }, 'coding-plan')
+    assert.equal(reading.windows[0]?.resetsAt, expected, `resetsAt ${String(resetsAt)}`)
+  }
+
+  // A nonsense instant is dropped rather than turned into a 1970 date.
+  const noReset = opencode.parse({ usage: { rolling: { percent: 1, resetsAt: 'soon' } } }, 'coding-plan')
+  assert.deepEqual(noReset.windows, [{ id: '5h', usedPercent: 1 }])
 })
 
 test('opencode sends a bearer token and a browser user agent (Cloudflare error 1010 without one)', () => {

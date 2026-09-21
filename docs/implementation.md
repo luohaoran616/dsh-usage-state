@@ -9,8 +9,8 @@
 | 项目 | 状态 |
 |---|---|
 | 实现 | ✅ 完成（宿主 + 客户端 + 构建产物） |
-| 本机装入与人工验收 | ✅ 通过（DeepSeek 余额、z.ai 5h/7d、双位置状态行、设置页、悬浮提示） |
-| 自动化测试 | ✅ 228 个用例（`npm test`），`tsc --noEmit` 干净 |
+| 本机装入与人工验收 | ✅ 通过（DeepSeek 余额、z.ai 5h/7d、OpenCode Zen Go 5h/7d/30d、双位置状态行、设置页、悬浮提示） |
+| 自动化测试 | ✅ 262 个用例（`npm test`），`tsc --noEmit` 干净 |
 | 发布 | ✅ <https://github.com/takboo/dsh-usage-state>（公开，MIT） |
 | `dsh plugin add github:takboo/dsh-usage-state` | ✅ 实测可装（在临时目录安装发布包并加载验证） |
 | 替代 `dsh-cost-meter` | ✅ 已从 web profile 卸载（历史数据保留在 `~/.dsh/storages/cost-meter/`） |
@@ -27,6 +27,7 @@
 | `src/host/sources/deepseek.ts` | DeepSeek 余额（多币种乱序挑选、保留赠送/充值构成） |
 | `src/host/sources/zai.ts` | z.ai / GLM：三种返回形态、`unit` 语义、200 错误信封识别、国内/国际镜像 |
 | `src/host/sources/kimi.ts` | Kimi：API 模式查 Moonshot 余额、Coding Plan 模式查 Kimi Code 订阅窗口（需 CLI UA） |
+| `src/host/sources/opencode.ts` | OpenCode Zen Go：`GET /zen/go/v1/usage`（**必须带浏览器 UA**，否则 Cloudflare 1010）；`rolling/weekly/monthly` → `5h/7d/30d`；根级 `usage` 与 `data.usage` 两种信封；401/403 = 无订阅/密钥无效 |
 | `src/host/sources/sub2api.ts` | Sub2API `GET /v1/usage`，全程容错（字段曾漂移） |
 | `src/host/sources/_template.ts` | 新数据源骨架（进 `tsc` 检查，不会腐化） |
 | `src/host/sources/index.ts` | `ALL_SOURCES` 注册表 + `findSource` |
@@ -65,7 +66,7 @@
 | 决策 | 实现 | 测试 | 验证程度 |
 |---|---|---|---|
 | 只做余额/额度显示，砍掉计费 | 代码库无价格目录/账本/历史模块 | — | 结构上可验证（模块不存在） |
-| 四家数据源 | `host/sources/{deepseek,zai,kimi,sub2api}.ts` | `tests/sources/*`（50 例） | **DeepSeek / z.ai 真机**；Kimi / Sub2API 仅单测（本机无凭据） |
+| 五家数据源 | `host/sources/{deepseek,zai,kimi,opencode,sub2api}.ts` | `tests/sources/*`（63 例） | **DeepSeek / z.ai / OpenCode Zen Go 真机**；Kimi / Sub2API 仅单测（本机无凭据） |
 | provider 级配置（**修订**：原为 model 级） | `shared/config.ts` + `shared/providers.ts` + `client/provider-rows.ts` | `config`(12) / `providers`(14) / `provider-rows`(10) | 真机（provider 行 + "自动识别为 …"） |
 | 零配置 `auto` | `providers.resolveProvider` + `targets`（宿主用 `ctx.llm.listProviders()` 枚举 provider） | `providers` / `targets` / `entry` | 真机（未配置也读到了 DeepSeek 余额） |
 | 模式选项按数据源能力过滤 | `provider-rows.modes` + `providers.resolveProvider`（`unsupported` 不静默替换） | `provider-rows` / `providers` | 真机（DeepSeek 不出现 Coding plan） |
@@ -114,6 +115,7 @@
 2. **Sub2API**——本机没有自建实例；`/v1/usage` 是未文档化接口且字段漂移过，实现按容错处理。
 3. **阈值变色的视觉**——真机读数 12%/59% 未触及阈值；把设置里黄色阈值临时改成 10 即可看到。
 4. **手写密钥写入**——设置页可写，但本机凭据来自环境变量/凭据文件，未实际走一遍写入→生效。
+5. **OpenCode Zen Go 的非零路径**——真机 HTTP 200、三窗口（5h/7d/30d）都返回 `0%`（账户未用），所以 `percent > 0` 的显示、阈值变色与窗口排序没有真机样本；`status` 字段也只见过 `"ok"`，若将来出现非 `ok` 且 `percent: 0`，当前会显示 0% 而不是报错（无取值证据前不臆造，故未做映射）。
 
 **已识别但尚未实现**（讨论见 `design-consensus.md` §13）：
 

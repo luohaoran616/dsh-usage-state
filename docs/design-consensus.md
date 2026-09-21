@@ -14,7 +14,7 @@
 
 **不做**（成本插件的复杂度来源，全部砍掉）：会话成本统计、模型价格目录与自动匹配、历史账单、预算图框、峰谷计价与通知、native-search 计费、CLIProxyAPI/网关额度、SCNet/Qwen 本地估算、自定义余额端点、会话日志回填与修复 CLI。
 
-## 2. 数据源（v1 实现 4 家）
+## 2. 数据源（v1 实现 5 家）
 
 | 数据源 | 模式 | 接口 | 说明 |
 |---|---|---|---|
@@ -22,9 +22,10 @@
 | z.ai / 智谱 GLM Coding Plan | Coding Plan | 默认 `GET https://open.bigmodel.cn/api/monitor/usage/quota/limit`（**国内站**，镜像 `https://api.z.ai`），Bearer | `data.limits[]`：`unit=3 && number=5` → 5h；`unit=6 && number=1` → 7d；`percentage` = 已用；`nextResetTime` = epoch ms。**鉴权失败是 HTTP 200 + `{success:false,code:1000,msg}`**，必须识别成"密钥无效"而不是"解析失败"；区域站点互不认对方 key，故按镜像重试。旧路径 `coding_plan/usage` 作为可选兜底 |
 | Kimi（国内版） | API | `GET https://api.moonshot.cn/v1/users/me/balance` | 按量余额（PAYG） |
 | Kimi（国内版） | Coding Plan | `GET https://api.kimi.com/coding/v1/usages` | 需 `sk-kimi-*` key + UA `KimiCLI/1.6`；周窗口 + `limits[]` 中的 5h 窗口 |
+| OpenCode Zen Go（**修订 11**） | Coding Plan | `GET https://opencode.ai/zen/go/v1/usage`，Bearer | `usage.{rolling,weekly,monthly}` → `5h/7d/30d`；`percent` 已是 0..100 已用（用 `clampPercent`，**不能**用 `normalizePercent`，否则 `1` 会变成 100%）；`resetsAt` 为 ISO。根级 `usage` 与 `data.usage` 两种信封都接受。**必须带浏览器 UA**（否则 Cloudflare error 1010）；401/403 = 无订阅/密钥无效，**不是 0%** |
 | sub2api（自建） | API / Coding Plan | `GET {baseURL}/v1/usage`，`Authorization: Bearer sk-…` | 一个接口覆盖两种模式：`quota{limit,used,remaining,unit}` / 钱包模式 `balance`；`rate_limits[]` 直接给 `window: "5h" | "1d" | "7d"`（**美元计价，百分比自算 `used/limit`**）。**未文档化的内部接口，字段已发生过漂移 → 按易碎适配器实现** |
 
-**其余厂商只留契约与文档**（Claude Pro/Max OAuth、MiniMax、OpenRouter、SiliconFlow、CommandCode、Codex/ChatGPT、Antigravity、Gemini Code Assist、Volcengine Ark、OpenCode Zen、Moonshot 国际版等）：`docs/adapters.md` 写清接口形态、鉴权方式、返回字段与陷阱 + `src/host/sources/_template.ts` 注释模板，不写实现。
+**其余厂商只留契约与文档**（Claude Pro/Max OAuth、MiniMax、OpenRouter、SiliconFlow、CommandCode、Codex/ChatGPT、Antigravity、Gemini Code Assist、Volcengine Ark、Moonshot 国际版等）：`docs/adapters.md` 写清接口形态、鉴权方式、返回字段与陷阱 + `src/host/sources/_template.ts` 注释模板，不写实现。
 
 ## 3. 供应商清单与配置
 
@@ -37,7 +38,7 @@
 
 ## 4. 密钥
 
-- **探测顺序**：设置页覆盖 → 该 provider 配置里的 `apiKeyEnv`（`llm-deepseek` / `llm-pi-ai` 的 provider profile）→ 数据源内置 ref → DSH 凭据库（`ctx.get('credentials').resolve/describe`）。v1 四家全部使用 API key，不需要任何 CLI 登录文件。
+- **探测顺序**：设置页覆盖 → 该 provider 配置里的 `apiKeyEnv`（`llm-deepseek` / `llm-pi-ai` 的 provider profile）→ 数据源内置 ref → DSH 凭据库（`ctx.get('credentials').resolve/describe`）。v1 五家全部使用 API key，不需要任何 CLI 登录文件。
 - **最后兜底**（见 §13 修订 6）：平台凭据服务报"未配置"时，按平台自身的优先级直读 进程环境 → `$DSH_HOME/.credentials.yaml`，并把来源标注为 `env (direct)` / `file (direct)`，避免静默掩盖平台路径的问题。
 - **设置页每一行显示**：密钥来源 + 「可用 / 未配置」，并提供粘贴框写入 DSH 凭据库（`credentials.set`，落盘 `~/.dsh/.credentials.yaml`）。**插件自己不存明文**。
 - 客户端不接触密钥值：只用 `ctx.remote.credentials.describe/set/unset`，传字符串 ref（客户端 bundle 禁止跨插件值导入，不能传 `credentialRef()` 的返回值）。
@@ -151,3 +152,8 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 
 10. **`.d.ts` 与兼容性声明**（本文档校正）
    原文写"产出 `.d.ts`"与"声明 `dsh >= 0.1.5-rc.2`"，实现都不成立：`dts: false`，且平台 manifest schema 没有 `compatibility` 字段。已按事实改写。
+
+11. **OpenCode Zen Go：候选 → 实现**（`c01a64f`，0.2.0）
+   原决策把它归入"只留契约与文档，不写实现"（理由是"需要浏览器 UA，Cloudflare 保护"）。真机侦察确认只差一个 `user-agent` 就能直连，不需要 OAuth 或任何 CLI 登录文件，凭据模型与既有五家完全一致，于是实现。两条通往同一账户的 DSH 路由（内置 `opencode-go` 与自定义 `opencode-go-deepseek`）按 `sourceId:mode` 去重，只产生一个读数、只发一次请求。
+   **代价（需知悉）**：`PROVIDER_HINTS` 的先后顺序成了语义的一部分——`opencode` 必须排在 `deepseek` 之前（否则 `opencode-go-deepseek` 被当成 DeepSeek 账户），而 `sub2api` 必须排在 `opencode` 之前（否则自建网关 `sub2api-opencode` 被当成 OpenCode 账户）。因此 `sub2api-deepseek` 这类同时命中两者的 id 语义随之改变；zai/kimi 被前移到最前，正是为了把这类改变压到最小。
+   另：真机上三个窗口读到的都是 `0%`（账户未用），**非零百分比路径与 `status` 非 `ok` 的语义都未验证**。

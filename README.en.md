@@ -59,8 +59,8 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 ## Display, refresh, credentials
 
 - **Placement**: `conversation.composer.dock` (aligned with the native stats row) and `conversation.chat.turnTail` (under each completed turn).
-- **Elements**: provider label · balance + currency · 5h / 7d used % · reset countdown · mini progress bar · threshold colours (defaults: amber ≥80%, red ≥95%).
-- **Semantics**: percentages are always *used*; balances only appear in API mode, windows only in coding-plan mode; a stale reading shows its age instead of hiding.
+- **Elements**: provider label · balance + currency · each window (5h / 7d / 30d) used % · reset countdown · mini progress bar · threshold colours (defaults: amber ≥80%, red ≥95%).
+- **Semantics**: percentages are always *used*; balances only appear in API mode, and coding-plan mode shows the windows the source actually has (5h / 7d for z.ai and Sub2API, plus 30d for OpenCode Zen Go); a stale reading shows its age instead of hiding.
 - **Refresh**: 2s after a turn ends, plus a 5-minute idle fallback; at most one real request per source per 60s, in-flight calls are shared, failures are not throttled.
 - **Credentials**: override → the provider's declared `apiKeyEnv` → the source's built-in ref → DSH credential store. Keys are written to `~/.dsh/.credentials.yaml`; **this plugin never stores a plaintext key** and the browser never receives a key value.
 
@@ -68,7 +68,7 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 
 - Verified against DSH `0.1.5-rc.2`, Node ≥ 20.
 - Distributed via GitHub; **not published to npm** (`private: true`).
-- Version `0.2.1`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
+- Version `0.2.2`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
 
 ## Limitations
 

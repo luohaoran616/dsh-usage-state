@@ -14,14 +14,15 @@ const BROWSER_USER_AGENT =
 
 /**
  * The quota endpoint lives under `/zen/go/v1`. A provider profile declares its
- * `baseURL` as the *API* base (`https://opencode.ai/zen/go/v1`), and the same
- * string can be pinned in our settings, so the base can arrive already carrying
- * part of our own path. `normalizeBaseUrl` has dropped the trailing `/vN` by now;
- * drop the `/zen/go` left behind, or the path would be appended a second time.
+ * `baseURL` as the *API* base (`https://opencode.ai/zen/go/v1`), the settings page can
+ * pin that same string, and a user can paste the documented URL in full — so the base
+ * can arrive already carrying any suffix of our own path. `normalizeBaseUrl` has
+ * already dropped a trailing `/vN`; drop whatever of `/zen/go`, `/vN` and `/usage`
+ * remains, or the path would be appended to itself.
  */
 function endpointOrigin(value: unknown): string {
   const base = normalizeBaseUrl(value) ?? DEFAULT_BASE_URL
-  return base.replace(/\/zen\/go$/i, '')
+  return base.replace(/\/zen\/go(?:\/v\d+)?(?:\/usage)?$/i, '')
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

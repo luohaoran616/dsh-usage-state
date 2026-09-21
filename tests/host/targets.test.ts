@@ -45,8 +45,14 @@ test('suggestSourceId recognises the provider ids people actually configure', ()
   assert.equal(suggestSourceId('opencode-go-deepseek'), 'opencode')
   assert.equal(suggestSourceId('opencode'), 'opencode')
   // A self-hosted gateway that merely relays OpenCode models stays a gateway:
-  // the sub2api hint is checked first on purpose.
+  // the sub2api hint is checked before opencode on purpose.
   assert.equal(suggestSourceId('sub2api-opencode'), 'sub2api')
+  // Vendor hints still beat the gateway hint, so only ids that pair `sub2api` with
+  // `deepseek` change meaning (deepseek had to move behind opencode — see the order
+  // in src/shared/config.ts).
+  assert.equal(suggestSourceId('sub2api-glm'), 'zai')
+  assert.equal(suggestSourceId('sub2api-kimi'), 'kimi')
+  assert.equal(suggestSourceId('sub2api-deepseek'), 'sub2api')
   assert.equal(suggestSourceId('my-relay'), undefined)
 })
 
@@ -125,8 +131,37 @@ test('resolveTargets carries the endpoint a provider declares', () => {
   ])
 })
 
-test('resolveTargets deduplicates models that share one account-level reading', () => {
-  const targets = resolveTargets(
+test('a provider DSH no longer has is not polled, though its stored mode is kept', () => {
+  // The stored entry survives (so the mode returns with the provider), but the host
+  // must not keep asking an account no DSH provider maps to any more.
+  const config = normalizeConfig({
+    providers: { ghost: { mode: 'coding-plan', sourceId: 'zai' } },
+  })
+  const targets = resolveTargets(config, { providers: ['deepseek-official'] })
+
+  assert.deepEqual(targets.map(target => target.key), ['deepseek:api'])
+})
+
+test('a legacy per-model entry for a provider DSH no longer has is not polled either', () => {
+  const config = configWith([
+    { provider: 'ghost', model: 'glm-4.6', sourceId: 'zai', mode: 'coding-plan' },
+  ])
+  const targets = resolveTargets(config, { providers: ['deepseek-official'] })
+
+  assert.deepEqual(targets.map(target => target.key), ['deepseek:api'])
+})
+
+test('an empty live provider list means "could not ask", so configured entries still run', () => {
+  // ctx.get('llm') may be unavailable on early ticks; an empty list is not proof that
+  // no provider exists, so the configured entries must keep working.
+  const config = normalizeConfig({ providers: { 'zai-cn': { mode: 'coding-plan' } } })
+
+  const targets = resolveTargets(config, { providers: [] })
+
+  assert.deepEqual(targets.map(target => target.key), ['zai:coding-plan'])
+})
+
+test('resolveTargets deduplicates models that share one account-level reading', () => {  const targets = resolveTargets(
     configWith([
       { provider: 'deepseek-official', model: 'deepseek-flash', sourceId: 'deepseek', mode: 'api' },
       { provider: 'deepseek-official', model: 'deepseek-v4-pro', sourceId: 'deepseek', mode: 'api' },
