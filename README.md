@@ -44,6 +44,8 @@ dsh plugin --profile web remove dsh-usage-state
 
 若某个数据源需要端点或密钥（例如自建的 Sub2API、或尚未配置的 z.ai），展开该行的 **高级**：可覆盖数据源、填接口地址、指定凭据名、粘贴密钥（写入 DSH 凭据库）。
 
+供应商名过长时，卡片头部只截断灰色的 provider id（悬停显示全文），右侧的 `↑ ↓ 自动 / Coding Plan / 隐藏` 不会换行。
+
 ## 支持的数据源
 
 | 数据源 | API 模式 | Coding Plan 模式 | 凭据 |
@@ -97,7 +99,7 @@ dsh plugin --profile web remove dsh-usage-state
 
 - 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20（`engines`）。
 - 通过 GitHub 安装，**不发布到 npm**（`private: true`）。
-- 版本 `0.2.2`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
+- 版本 `0.2.3`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
 
 ## 已知限制
 
@@ -134,6 +136,13 @@ tests/           与 src 对应；tests/build 校验的是产物本身
 | [`docs/adapters.md`](docs/adapters.md) | 添加数据源：契约、四步流程、约定与坑、候选厂商、排查表 |
 | [`docs/design-consensus.md`](docs/design-consensus.md) | 设计共识与修订记录（每条决策的来龙去脉） |
 | [`docs/research/README.md`](docs/research/README.md) | 只读侦察报告索引（各厂商接口、被替代插件剖析、DSH RPC 契约） |
+
+## 致谢与参考
+
+- **[`dsh-cost-meter`](https://github.com/Han-1413141/dsh-cost-meter)**（作者 Han-1413141，MIT 许可）：本插件是它的**简化替代品**——只保留「看余额 / 看 Coding Plan 额度」这个展示需求，砍掉计费、价格目录、历史账单、预算与峰谷提醒等全部逻辑（见上面的「只做显示」）。
+  数据源端点、响应字段语义与若干兼容陷阱（OpenCode Zen Go 必须带浏览器 UA、z.ai 用 HTTP 200 + `{success:false}` 表达鉴权失败、旧 `coding_plan/usage` 兜底路径、sub2api 的 `rate_limits[]` 形态等）来自对 `dsh-cost-meter@1.7.28` 的**只读分析**，记录见 [`docs/research/dsh-cost-meter-analysis.md`](docs/research/dsh-cost-meter-analysis.md)。本仓库的实现是独立编写的 TypeScript，不是对其源码的照搬；但那些行为语义确实源自上述分析，应归功于上游。
+  若上游作者认为某处需要更明确的署名或授权，请提 issue，我会立刻调整。
+- **[DSH（DeepSeek Harness）](https://github.com/deepseek-ai)**：宿主平台。插件使用它的设置命名空间、凭据库、Typert RPC、插槽系统与 UI 原语（`@deepseek-ai/dsh-client-ui-primitives` 等）。
 
 ## 许可
 

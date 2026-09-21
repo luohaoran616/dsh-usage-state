@@ -101,7 +101,7 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 
 1. 本仓库开发 → 本地装入 web profile（`~/.dsh/profiles/web`）。
 2. 设置页能看到供应商清单、密钥检测结果、逐供应商四态（自动/API/Coding Plan/隐藏）、上/下移排序。
-3. DeepSeek 余额出现在 composer 行与 turnTail。
+3. DeepSeek 余额出现在 composer 行与回合动作条（`assistant-actions`，原 turnTail 见修订 9）。
 4. 刷新插件/重启 DSH 后配置保留。
 5. 验收通过后**卸载 `dsh-cost-meter`** ✅ 已完成，确认状态行无重复。
 6. `gh` 建仓推送 `takboo/dsh-usage-state`，验证 `dsh plugin add github:takboo/dsh-usage-state` 可装。
@@ -114,13 +114,13 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 - **composer 行的对齐依赖平台内部 CSS 变量**（`--dsh-chat-content-width` 等），非公开契约 → 变量缺失时必须优雅退化，不能错版。
 - **仍未经真机验证**：Kimi（Moonshot 余额 + Kimi Code 窗口）、Sub2API（需要自建实例地址）、阈值变色的视觉、手写密钥写入→生效。详见 [`implementation.md`](implementation.md) §6。
 - **凭据服务的可见性**：profile 根级插入的行未必能拿到 `credentials` 服务（作用域），因此加了直读兜底；来源标注可用来判断平台路径是否真的在工作，若确认可用应删掉兜底。
-- **回合行的固定值**：目前 turnTail 与 dock 显示同一份"最新读数"，老回合下方显示的是当前值。方案（C2+D：固定值 + 较上一回合 Δ）已定，持久化方式待定，见 §13 修订 8。
+- **回合行的固定值**：目前回合动作条（`assistant-actions`，原 turnTail）与 dock 显示同一份"最新读数"，老回合下方显示的是当前值。方案（C2+D：固定值 + 较上一回合 Δ）已定，持久化方式待定，见 §13 修订 8。
 
 ## 12. 实现顺序
 
 1. 脚手架 + 设置命名空间 + 自定义设置页（模型清单 / 三态 / 排序 / 密钥状态与写入）。
 2. 宿主 adapter 框架 + DeepSeek 余额 + RPC 快照通道。
-3. 客户端状态行（composer 兄弟行 + turnTail）+ 中英词典。
+3. 客户端状态行（composer 兄弟行 + 回合动作条；原计划挂在 turnTail，后按修订 9 改挂 `assistant-actions`）+ 中英词典。
 4. z.ai / Kimi / sub2api 适配器 + 解析单测。
 5. 本地装入与验收 → 卸载 cost-meter → GitHub 发布。
 
@@ -157,3 +157,9 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
    原决策把它归入"只留契约与文档，不写实现"（理由是"需要浏览器 UA，Cloudflare 保护"）。真机侦察确认只差一个 `user-agent` 就能直连，不需要 OAuth 或任何 CLI 登录文件，凭据模型与既有五家完全一致，于是实现。两条通往同一账户的 DSH 路由（内置 `opencode-go` 与自定义 `opencode-go-deepseek`）按 `sourceId:mode` 去重，只产生一个读数、只发一次请求。
    **代价（需知悉）**：`PROVIDER_HINTS` 的先后顺序成了语义的一部分——`opencode` 必须排在 `deepseek` 之前（否则 `opencode-go-deepseek` 被当成 DeepSeek 账户），而 `sub2api` 必须排在 `opencode` 之前（否则自建网关 `sub2api-opencode` 被当成 OpenCode 账户）。因此 `sub2api-deepseek` 这类同时命中两者的 id 语义随之改变；zai/kimi 被前移到最前，正是为了把这类改变压到最小。
    另：真机上三个窗口读到的都是 `0%`（账户未用），**非零百分比路径与 `status` 非 `ok` 的语义都未验证**。
+
+12. **设置页供应商卡头部：换行 flex → 两列网格**（`SettingsSection.tsx`）
+   正文（§3）只说了设置页"每行一个供应商"，没规定卡头部怎么排。实现最初用 `ROW`（`flex-wrap: wrap`）+ `justify-content: space-between`，名字块上还带了一对 `overflow:hidden / text-overflow:ellipsis`。
+   真机暴露两件事：**其一**，那对省略号是死代码——既没有 `white-space: nowrap`，名字块作为 flex item 又在"先换行、后压缩"的策略下永不被压到溢出，所以一辈子不会触发；**其二**，名字一长整簇控件就被折到第二行左侧：同一页里 `zai-coding-cn` 的按钮贴右、`opencode-go-ds41` 的按钮掉到下一行，对齐随名字长度漂移（用户截图）。
+   现决策：头部改为 `display:grid; grid-template-columns: minmax(0,1fr) auto`，名字列 `min-width:0 + overflow:hidden + text-overflow:ellipsis + white-space:nowrap`，控件列 `flex-shrink:0`。**永不换行**，省略号才真正生效；因为 provider id 排在粗体显示名之后，被截断的永远是冗余的那一半，用 `title` 属性兜住全文（不引 `Tooltip`，免得为悬停多包一层 DOM 破坏网格）。共享的 `ROW` 不动：它的 `wrap` 对凭据面板那些行仍然是必要的。
+   **代价（需知悉）**：面板很窄时名字列会被压到 `名字 + id` 一起截断。若实测仍嫌紧，下一步是把「自动 / Coding Plan / 隐藏」收成一个菜单、或把 ↑↓ 移进「高级」——那会推翻修订 3 的结论，必须一并改写它。

@@ -58,6 +58,8 @@ export interface UsageSource {
 
 ## 已实现的数据源与坑
 
+> 下表各厂商的端点、字段语义与陷阱，主体来自社区侦察与被替代插件 `dsh-cost-meter@1.7.28` 的只读分析（[`research/dsh-cost-meter-analysis.md`](research/dsh-cost-meter-analysis.md)）；实现是独立编写的，署名与出处见 README 的「致谢与参考」。
+
 | 数据源 | 模式 | 端点 | 关键坑 |
 |---|---|---|---|
 | DeepSeek 官方 | API | `GET {base}/user/balance` | 多币种返回顺序**不稳定**，固定取首条会让余额在真值与 0 之间跳；按"优先有余额 → 优先 CNY"挑选。官方无 coding plan、无窗口 |

@@ -311,6 +311,36 @@ test('the settings page shows one row per provider with its models and resolved 
   assert.match(html, /Advanced/)
 })
 
+test('a long provider name truncates instead of pushing the controls onto a second line', () => {
+  const html = renderToStaticMarkup(
+    h(SettingsSection, {
+      close: () => undefined,
+      t,
+      usageState: storeWith({
+        catalog: CATALOG,
+        models: [
+          {
+            provider: 'opencode-go-deepseek',
+            providerName: 'opencode-go-ds41',
+            model: 'deepseek-v4-flash',
+            name: 'DeepSeek V4.1 Flash',
+          },
+        ],
+      }),
+      settings: settingsWith(configWith()),
+      credentials: CREDENTIALS,
+    }),
+  )
+
+  // The header is a two-column grid, so the controls cannot wrap below the name...
+  assert.match(html, /grid-template-columns:minmax\(0, 1fr\) auto/)
+  assert.match(html, /flex-shrink:0/)
+  // ...and the name column ellipsizes rather than overflowing the card.
+  assert.match(html, /overflow:hidden;text-overflow:ellipsis;white-space:nowrap/)
+  // The full name pair survives in the tooltip, since the id is what gets cut.
+  assert.match(html, /title="opencode-go-ds41 · opencode-go-deepseek"/)
+})
+
 test('the settings page shows why a reading failed, not just that it did', () => {
   const html = renderToStaticMarkup(
     h(SettingsSection, {

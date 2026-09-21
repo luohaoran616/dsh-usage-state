@@ -10,7 +10,7 @@
 |---|---|
 | 实现 | ✅ 完成（宿主 + 客户端 + 构建产物） |
 | 本机装入与人工验收 | ✅ 通过（DeepSeek 余额、z.ai 5h/7d、OpenCode Zen Go 5h/7d/30d、双位置状态行、设置页、悬浮提示） |
-| 自动化测试 | ✅ 262 个用例（`npm test`），`tsc --noEmit` 干净 |
+| 自动化测试 | ✅ 263 个用例（`npm test`），`tsc --noEmit` 干净 |
 | 发布 | ✅ <https://github.com/takboo/dsh-usage-state>（公开，MIT） |
 | `dsh plugin add github:takboo/dsh-usage-state` | ✅ 实测可装（在临时目录安装发布包并加载验证） |
 | 替代 `dsh-cost-meter` | ✅ 已从 web profile 卸载（历史数据保留在 `~/.dsh/storages/cost-meter/`） |
@@ -52,8 +52,8 @@
 | `src/client/store.ts` | 浏览器侧读数镜像：失败不覆盖旧数据、并发共享在途调用、模型目录通道 |
 | `src/client/provider-rows.ts` | provider 行构建、模式设置、顺序调整（纯函数） |
 | `src/client/status-text.ts` | `StatusSegment` → 可渲染 parts（含每个部分的 tooltip 文案，纯函数） |
-| `src/client/StatusLine.tsx` | 状态行组件（dock / turnTail 两个变体共用），平台 `Tooltip` 承载细节 |
-| `src/client/SettingsSection.tsx` | 设置页：provider 四态、上/下移、模型清单、高级区（数据源覆盖/端点/凭据名/密钥写入） |
+| `src/client/StatusLine.tsx` | 状态行组件（`dock` / `actions` 两个变体共用；`actions` 即回合动作条，原 turnTail 见 `design-consensus.md` 修订 9），平台 `Tooltip` 承载细节 |
+| `src/client/SettingsSection.tsx` | 设置页：provider 四态、上/下移、模型清单、高级区（数据源覆盖/端点/凭据名/密钥写入）；卡头部是两列网格，名字过长时只截断灰色的 provider id，控件不换行（见 §3 与 `design-consensus.md` §13 修订 12） |
 | `src/client/locales.ts` | 中英词典（`en` 以 `zh` 的键联合类型约束）+ `LocaleNamespaceMap` 增强 |
 | `src/client/hooks.ts` | `useStoreState` / `useSettingsValue` / `useNow` |
 
@@ -67,16 +67,17 @@
 |---|---|---|---|
 | 只做余额/额度显示，砍掉计费 | 代码库无价格目录/账本/历史模块 | — | 结构上可验证（模块不存在） |
 | 五家数据源 | `host/sources/{deepseek,zai,kimi,opencode,sub2api}.ts` | `tests/sources/*`（63 例） | **DeepSeek / z.ai / OpenCode Zen Go 真机**；Kimi / Sub2API 仅单测（本机无凭据） |
-| provider 级配置（**修订**：原为 model 级） | `shared/config.ts` + `shared/providers.ts` + `client/provider-rows.ts` | `config`(12) / `providers`(14) / `provider-rows`(10) | 真机（provider 行 + "自动识别为 …"） |
+| provider 级配置（**修订**：原为 model 级） | `shared/config.ts` + `shared/providers.ts` + `client/provider-rows.ts` | `config`(12) / `providers`(15) / `provider-rows`(13) | 真机（provider 行 + "自动识别为 …"） |
 | 零配置 `auto` | `providers.resolveProvider` + `targets`（宿主用 `ctx.llm.listProviders()` 枚举 provider） | `providers` / `targets` / `entry` | 真机（未配置也读到了 DeepSeek 余额） |
 | 模式选项按数据源能力过滤 | `provider-rows.modes` + `providers.resolveProvider`（`unsupported` 不静默替换） | `provider-rows` / `providers` | 真机（DeepSeek 不出现 Coding plan） |
-| 凭据自动复用（不用手配） | `credentials` + `provider-refs` + `credential-fallback` | `credentials`(10) / `provider-refs`(7) / `credential-fallback`(5) | 真机（设置页显示 `DEEPSEEK_API_KEY 已配置`，来源标注） |
+| 凭据自动复用（不用手配） | `credentials` + `provider-refs` + `credential-fallback` | `credentials`(10) / `provider-refs`(8) / `credential-fallback`(5) | 真机（设置页显示 `DEEPSEEK_API_KEY 已配置`，来源标注） |
 | 密钥写入走平台凭据库 | `client/SettingsSection`（`remote.credentials.set/unset`）+ `writable` 透传 | `render` + `credentials` | 结构 + 单测（本机未真正写过密钥） |
-| 设置命名空间 `usage-state` + 自定义页 | `host/settings.ts` + `client/SettingsSection.tsx` | `settings`(4) / `render`(12) | 真机（页面可用、四态与排序即时生效） |
-| RPC 通道（Typert） | `host/typert.ts` + `host/service.ts` + `client/index.tsx`（`$mount`） | `typert`(8) / `service`(5) / `entry`(10) / `bundle`(6) | 真机 + **平台 `validateTypertManifest`** |
+| 设置命名空间 `usage-state` + 自定义页 | `host/settings.ts` + `client/SettingsSection.tsx` | `settings`(4) / `render`(14) | 真机（页面可用、四态与排序即时生效） |
+| 卡头部不换行：名字过长不挤走控件（**本轮**） | `client/SettingsSection.tsx` 的三组样式常量（`HEADER` / `NAME` / `CONTROLS`） | `render`（长名用例：网格 + ellipsis + `flex-shrink:0` + `title`） | 结构（SSR 断言）；真机目视待确认 |
+| RPC 通道（Typert） | `host/typert.ts` + `host/service.ts` + `client/index.tsx`（`$mount`） | `typert`(8) / `service`(5) / `entry`(11) / `bundle`(6) | 真机 + **平台 `validateTypertManifest`** |
 | 状态行挂两处（dock 兄弟行 + 回合动作条） | `client/slots.ts`（挂载点即数据）+ `client/index.tsx` + `client/StatusLine.tsx` | `slots`(4) / `render`（SSR） | 真机确认可见；回合行曾因 chain 冲突消失，已改挂 `assistant-actions` 修复（见 §9 第 11 条） |
 | 刷新：回合结束 +2s、空闲 5min、最小 60s | `host/refresh.ts`（时钟注入）+ `src/index.ts` | `refresh`(12)（假时钟）/ `entry` | 单测精确覆盖；真机间接（数值随时间变化） |
-| 失败保留旧值 + 陈旧时间 + ⚠ | `refresh.fail` + `display.describeStatus` + `status-text` | `refresh` / `display`(12) / `status-text`(6) / `render` | 真机（早期 `⚠ … Unavailable` 截图）+ 单测 |
+| 失败保留旧值 + 陈旧时间 + ⚠ | `refresh.fail` + `display.describeStatus` + `status-text` | `refresh` / `display`(12) / `status-text`(8) / `render` | 真机（早期 `⚠ … Unavailable` 截图）+ 单测 |
 | 悬浮提示 (A) | `status-text` 生成 tooltip + `StatusLine` 用平台 `Tooltip` | `status-text` / `render`（断言 `data-tooltip`） | 真机（用户确认） |
 | 中英双语跟随 DSH 语言 | `client/locales.ts`（键集一致性有测试） | `locales`(5) / `render` | 真机（英文界面 + 中文词典） |
 | 构建与发布 | `tsdown.config.ts` / `package.json` / `lib/` | `bundle`(6)（信封、require 白名单、产物端到端） | 真机安装 + 从 GitHub 安装实测 |
@@ -104,6 +105,7 @@
 | 6 | 配置 z.ai / Kimi / Sub2API | 出现「数据源 / 接口地址 / 凭据名 / 密钥」区块；填入后 coding-plan 模式显示 `5h x% (倒计时) ▓▓░░░░░░ · 7d y%` |
 | 7 | 改显示设置（阈值、进度条、刷新间隔） | 立即生效；把黄色阈值临时改成 10 可确认阈值变色 |
 | 8 | 悬停任意一段文字 | 出现悬浮提示：数据源 + 模式（+ 窗口绝对重置时刻 / 余额赠送与充值构成 / 失败原因） |
+| 9 | 供应商名字很长时（如 `opencode-go-ds41` / `opencode-go-deepseek`） | 卡头部**不换行**：`↑ ↓ 自动 Coding Plan 隐藏` 始终与上一行同一右边界；被截断的灰色 id 悬停可看全文（`title`） |
 
 出问题时的恢复命令：`dsh plugin --profile web remove dsh-usage-state`。
 
@@ -119,7 +121,7 @@
 
 **已识别但尚未实现**（讨论见 `design-consensus.md` §13）：
 
-5. **回合行的"固定值 + 较上一回合 Δ"**——目前 turnTail 与 dock 显示同一份"最新读数"，因此老回合下方显示的是当前值而不是当时的值。目标形态已定（固定值 + Δ），**首选** session log + 投影（数据随会话生命周期自动清理、可随会话迁移），但**必须先做可行性实验**（读取侧是否会拒绝"未知类型且不带 `ignorable`"的事件），不行则退回插件自有文件 + LRU/TTL 清理。执行计划见 `plans/` 下的过渡文档（实施完成后删除）。
+5. **回合行的"固定值 + 较上一回合 Δ"**——目前回合动作条（`assistant-actions`）与 dock 显示同一份"最新读数"，因此老回合下方显示的是当前值而不是当时的值。目标形态已定（固定值 + Δ），**首选** session log + 投影（数据随会话生命周期自动清理、可随会话迁移），但**必须先做可行性实验**（读取侧是否会拒绝"未知类型且不带 `ignorable`"的事件），不行则退回插件自有文件 + LRU/TTL 清理。执行计划见 `plans/` 下的过渡文档（实施完成后删除）。
 6. **点击状态行进入设置页**——设计里写过"可点进设置"，但客户端没有公开的"打开设置面板"服务；(A) 方案改用悬浮提示承载细节，点击行为暂不做。
 7. **`.d.ts` 产物**——`tsdown` 配置 `dts: false`，不产出类型声明（运行时消费不需要）。
 8. **平台兼容性声明**——平台 manifest schema **没有** `compatibility` 字段（`dsh.bundle` / `dsh.client` / `profile` / `configTrees` / `sessionFormatMigration` / `moduleFallback` 才是它认识的）；实测环境是 DSH `0.1.5-rc.2` + Node ≥20（见 `engines`）。cost-meter 的 `dsh.compatibility` / `dshhub` 是市场元数据，未被平台读取。

@@ -18,7 +18,7 @@ hover any segment:           Source DeepSeek · Mode API balance · Granted 0 ·
 - **Never invents data**: a failed refresh keeps the last good value and marks it stale (`12m ago ⚠`); rejected keys, endpoint errors and network problems each get a readable reason.
 - **Hover details**: source and mode, the window's absolute reset time, the granted/topped-up split of a balance, the failure reason with the provider's own message.
 - **Bilingual** (zh / en), following the DSH locale setting.
-- **Display only**: no cost accounting, pricing catalog, history, budgets or peak/off-peak alerts.
+- **Display only**: no cost accounting, pricing catalog, history, budgets or peak/off-peak alerts — everything [`dsh-cost-meter`](https://github.com/Han-1413141/dsh-cost-meter) does beyond the readout itself is deliberately out of scope.
 
 ## Install
 
@@ -42,6 +42,8 @@ For development, a local path works too: `dsh plugin --profile web add /path/to/
 
 If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider without a credential yet), expand that row's **Advanced** block to override the source, set the endpoint, name the credential, or paste a key (written to the DSH credential store).
 
+A very long provider name never pushes the controls around: the card header stays on one line and only the grey provider id is truncated (hover it for the full text).
+
 ## Supported sources
 
 | Source | API mode | Coding-plan mode | Credential |
@@ -58,7 +60,7 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 
 ## Display, refresh, credentials
 
-- **Placement**: `conversation.composer.dock` (aligned with the native stats row) and `conversation.chat.turnTail` (under each completed turn).
+- **Placement**: `conversation.composer.dock` (aligned with the native stats row), and `conversation.chat.assistant-actions` (the turn action bar, after `Ran for …` and the timestamp). The action bar is always visible on the latest turn and hover-only on older turns — the platform's own per-turn token/duration panel behaves the same way.
 - **Elements**: provider label · balance + currency · each window (5h / 7d / 30d) used % · reset countdown · mini progress bar · threshold colours (defaults: amber ≥80%, red ≥95%).
 - **Semantics**: percentages are always *used*; balances only appear in API mode, and coding-plan mode shows the windows the source actually has (5h / 7d for z.ai and Sub2API, plus 30d for OpenCode Zen Go); a stale reading shows its age instead of hiding.
 - **Refresh**: 2s after a turn ends, plus a 5-minute idle fallback; at most one real request per source per 60s, in-flight calls are shared, failures are not throttled.
@@ -68,7 +70,7 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 
 - Verified against DSH `0.1.5-rc.2`, Node ≥ 20.
 - Distributed via GitHub; **not published to npm** (`private: true`).
-- Version `0.2.2`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
+- Version `0.2.3`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
 
 ## Limitations
 
@@ -97,6 +99,13 @@ Host-side changes need a DSH restart; client-side changes do not. The `lib/` out
 | [`docs/adapters.md`](docs/adapters.md) | Adding a data source: contract, workflow, pitfalls, candidate vendors, troubleshooting |
 | [`docs/design-consensus.md`](docs/design-consensus.md) | Design consensus and its revision log (Chinese) |
 | [`docs/research/README.md`](docs/research/README.md) | Read-only research index (vendor APIs, the replaced plugin, DSH RPC contract) |
+
+## Acknowledgements
+
+- **[`dsh-cost-meter`](https://github.com/Han-1413141/dsh-cost-meter)** by Han-1413141 (MIT): this plugin is a **simplified replacement** for it. It keeps the "show me my balance / coding-plan quota" need and drops everything else — cost accounting, pricing catalog, history, budgets, peak/off-peak alerts.
+  The data-source endpoints, the meaning of the response fields and several compatibility pitfalls (OpenCode Zen Go needs a browser UA, z.ai reports auth failure as HTTP 200 + `{success:false}`, the legacy `coding_plan/usage` fallback, sub2api's `rate_limits[]` shape, …) come from a **read-only analysis** of `dsh-cost-meter@1.7.28`, recorded in [`docs/research/dsh-cost-meter-analysis.md`](docs/research/dsh-cost-meter-analysis.md). The implementation here is independently written TypeScript rather than copied source, but those behaviours are upstream's work and credit belongs there.
+  If the upstream author wants a clearer attribution or a different arrangement, open an issue and it will be fixed.
+- **[DSH (DeepSeek Harness)](https://github.com/deepseek-ai)**: the host platform. The plugin relies on its settings namespace, credential store, Typert RPC, slot system and UI primitives (`@deepseek-ai/dsh-client-ui-primitives` and friends).
 
 ## License
 

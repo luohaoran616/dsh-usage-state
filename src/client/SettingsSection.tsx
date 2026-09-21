@@ -38,6 +38,29 @@ const ROW = {
 
 const MUTED = { color: 'var(--dsw-alias-label-tertiary)', fontSize: '12px' }
 
+/**
+ * The card header is a two-column grid, never a wrapping flex row: the name
+ * column absorbs the squeeze (and ellipsizes) so the controls keep the same
+ * right edge on every card, whatever the provider is called.
+ */
+const HEADER = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: '8px',
+  minWidth: 0,
+}
+
+/** The name is already truncated by the time it is painted; the tooltip keeps it readable. */
+const NAME = {
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
+}
+
+const CONTROLS = { display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }
+
 /** Models are listed for orientation only, so the line stays short. */
 const MAX_MODELS_SHOWN = 6
 
@@ -228,12 +251,13 @@ function ProviderCard(props: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '6px' }}>
-      <div style={{ ...ROW, justifyContent: 'space-between' }}>
-        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={HEADER}>
+        <span style={NAME} title={row.providerName === row.provider ? row.providerName : `${row.providerName} · ${row.provider}`}>
           <strong>{row.providerName}</strong>
+          {/* The id only disambiguates, so it is the part the ellipsis should eat. */}
           {row.providerName === row.provider ? null : <span style={MUTED}> {row.provider}</span>}
         </span>
-        <span style={ROW}>
+        <span style={CONTROLS}>
           <Button size="sm" variant="ghost" aria-label={t('moveUp')} disabled={props.index === 0} onClick={() => props.onMove(-1)}>
             ↑
           </Button>
