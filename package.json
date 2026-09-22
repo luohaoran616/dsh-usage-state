@@ -1,12 +1,12 @@
 {
   "name": "dsh-usage-state",
   "version": "0.3.0",
-  "private": true,
   "type": "module",
   "description": "DSH plugin: show account balance (API mode) or coding-plan quota (5h/7d/30d) for the model in use",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "dsh": ">=0.1.5-rc.1 <0.2.0-0"
   },
   "scripts": {
     "test": "node --import ./tests/support/client-render-hook.mjs --test",

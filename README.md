@@ -24,16 +24,22 @@
 
 ## 安装
 
-**前置条件**：DSH `0.1.5-rc.2` 或更高、Node ≥ 20，装进 `web` profile。仓库**自带预构建的 `lib/`**，安装时没有构建步骤。
+**前置条件**：DSH `0.1.5-rc.2` 或更高、Node ≥ 20，装进 `web` profile。包内**自带预构建的 `lib/`**，安装时没有构建步骤。
 
 ```bash
-# 1) 安装
-dsh plugin --profile web add github:takboo/dsh-usage-state
+# 1) 安装（npm 包）
+dsh plugin --profile web add dsh-usage-state
 
 # 2) 重启 DSH —— 插件的 bundle patch 只在启动时读取
 
 # 3) 卸载
 dsh plugin --profile web remove dsh-usage-state
+```
+
+直接从 GitHub 安装（内容与 npm 上的一致）：
+
+```bash
+dsh plugin --profile web add github:takboo/dsh-usage-state
 ```
 
 本地开发时可直接装目录（宿主半边改完同样要重启 DSH）：
@@ -100,8 +106,8 @@ dsh plugin --profile web add /path/to/dsh-usage-state
 
 ## 兼容性
 
-- 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20（`engines`）。
-- 通过 GitHub 安装，**不发布到 npm**（`private: true`）。
+- 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20；DSH 版本要求通过 `engines.dsh` 声明为 `>=0.1.5-rc.1 <0.2.0-0`（dsh-market 的兼容徽标读的就是它）。
+- 同名发布在 npm（[`dsh-usage-state`](https://www.npmjs.com/package/dsh-usage-state)），也可从 GitHub 直接安装。
 - 版本 `0.3.0`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
 
 ## 已知限制

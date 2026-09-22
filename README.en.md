@@ -22,16 +22,22 @@ hover any segment:           Source DeepSeek · Mode API balance · Granted 0 ·
 
 ## Install
 
-**Requirements**: DSH `0.1.5-rc.2` or newer, Node ≥ 20, installed into the `web` profile. The repository **ships the prebuilt `lib/`**, so installation has no build step.
+**Requirements**: DSH `0.1.5-rc.2` or newer, Node ≥ 20, installed into the `web` profile. The package **ships the prebuilt `lib/`**, so installation has no build step.
 
 ```bash
-# 1) install
-dsh plugin --profile web add github:takboo/dsh-usage-state
+# 1) install (npm package)
+dsh plugin --profile web add dsh-usage-state
 
 # 2) restart DSH — the plugin's bundle patch is read at startup
 
 # 3) remove
 dsh plugin --profile web remove dsh-usage-state
+```
+
+Installing straight from GitHub works too (same content as the npm package):
+
+```bash
+dsh plugin --profile web add github:takboo/dsh-usage-state
 ```
 
 For development, a local path works too (host-side changes still need a DSH restart):
@@ -76,8 +82,8 @@ A very long provider name never pushes the controls around: the card header stay
 
 ## Compatibility
 
-- Verified against DSH `0.1.5-rc.2`, Node ≥ 20.
-- Distributed via GitHub; **not published to npm** (`private: true`).
+- Verified against DSH `0.1.5-rc.2`, Node ≥ 20; the DSH requirement is declared as `>=0.1.5-rc.1 <0.2.0-0` through `engines.dsh` (this is what dsh-market's compatibility badge reads).
+- Published to npm as [`dsh-usage-state`](https://www.npmjs.com/package/dsh-usage-state); GitHub installs work too.
 - Version `0.3.0`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
 
 ## Limitations
