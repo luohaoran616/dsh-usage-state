@@ -168,7 +168,7 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
     **代价（需知悉）**：翻旧回合时不再能看到"当时的读数"。若将来仍想要账户的历史轨迹，诚实的形态是**按时间**而不是按回合（例如 dock 行悬停给出最近几条带本地时间的读数）；那属于本插件"不做历史趋势图/面板"之外的新决定，需要单独讨论并新写一条修订，不能顺手加回。
     **顺带沉淀的平台事实**：外部插件事件在 DSH 0.1.5-rc.2 **不可写**（见 `implementation.md` §9），这是"回合轨迹跟着会话走"这类需求的硬约束。
 
-14. **分发：发布 npm 包 + 收录进 dsh-market**（0.3.0）
+14. **分发：发布 npm 包 + 收录进 dsh-market**（`cf1acdf`，0.3.0）
     原决策是"只从 GitHub 安装、不发布 npm"（`private: true`），理由是仓库自带预构建 `lib/`、`dsh plugin add github:` 已经够用。用户随后要求"能被 dsh-market 搜索和安装"，而市场只认精选列表，且卡片上的兼容徽标与下载量都来自 npm，于是改变：
     - **发 npm**（`dsh-usage-state`）：去掉 `private: true`；发布内容是同一份 `lib/`（`files` 白名单：`lib` + `cordis.patch.yml` + README/LICENSE + `docs/adapters.md`，9 个文件 50.5 kB）。npm 发布让市场能显示下载量，也让预构建安装免 `allowBuilds` 授权。
     - **兼容声明走 `engines.dsh: ">=0.1.5-rc.1 <0.2.0-0"`**，而不是 `dsh.compatibility`：核对 dsh-market 源码（`discovery-compatibility.ts`）后确认它读的是 **npm latest 清单**里的 `engines.dsh`（或 `dsh.engines.dsh`），其次是同版本线的 `@deepseek-ai/dsh-*` peerDependencies；`dsh.compatibility` / `dshhub` 那类字段市场根本不看。区间显式带上预发布比较符，否则 node-semver 会静默排除 `0.1.5-rc.*` 宿主（contributing.md 专门警告过这一点）。实测**平台自身从不读 `engines`**（grep 过 dsh 的 lib），所以这一项只影响市场，不影响安装。
