@@ -123,7 +123,8 @@
 
 1. **点击状态行进入设置页**——设计里写过"可点进设置"，但客户端没有公开的"打开设置面板"服务；(A) 方案改用悬浮提示承载细节，点击行为暂不做。
 2. **`.d.ts` 产物**——`tsdown` 配置 `dts: false`，不产出类型声明（运行时消费不需要）。
-3. **平台兼容性声明**——平台 manifest schema **没有** `compatibility` 字段（`dsh.bundle` / `dsh.client` / `profile` / `configTrees` / `sessionFormatMigration` / `moduleFallback` 才是它认识的）；实测环境是 DSH `0.1.5-rc.2` + Node ≥20（见 `engines`）。cost-meter 的 `dsh.compatibility` / `dshhub` 是市场元数据，未被平台读取。
+3. **平台兼容性声明**——平台 manifest schema **没有** `compatibility` 字段（`dsh.bundle` / `dsh.client` / `profile` / `configTrees` / `sessionFormatMigration` / `moduleFallback` 才是它认识的）；实测环境是 DSH `0.1.5-rc.2` + Node ≥20（见 `engines`）。cost-meter 的 `dsh.compatibility` / `dshhub` 是市场元数据，未被平台读取。**DSH 版本要求本身**已按修订 14 用 `engines.dsh` 声明（市场读它做徽标与兼容判定）。
+4. **`peerDependencies.react` 是否移除**（待定）——端到端安装（§10）时 pnpm 报 `✕ missing peer react`：任何 profile 的依赖图里都没有 react（浏览器半边的 react 由平台在运行时注入，不走 node_modules），而我们在 `peerDependencies` 里声明了 `react: ^18.2.0`。它只是警告、安装照常成功，且市场只对 `@deepseek-ai/dsh*` 的 peer 做兼容评估（生态里 `dsh-better-sidebar` 等 UI 插件也不声明 react peer）。倾向下次发版时移除，让安装输出干净；不为此单独发一个版本。
 
 > 原"回合行的固定值 + Δ"已**结案否决**（账户级读数不放在回合上），见 `design-consensus.md` §13 修订 13；不再是待办项。
 
@@ -214,7 +215,24 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 
 **本次上架记录**：条目 `data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`，PR [awesome-dsh-plugin#5646](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5646)（CI `check` + `Submission gate` 全绿）；仓库已加 `dsh-plugin` topic；`engines.dsh` = `>=0.1.5-rc.1 <0.2.0-0`。
 
-**npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在——即 `dsh plugin add dsh-usage-state` 需要的三样东西齐备（profile 级的真机安装未在本机跑：宿主沙箱不允许写 `~/.dsh/profiles/*`）。
+**npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在。
+
+**端到端安装验证**（2026-09-22，把 `DSH_HOME` 指到 `/tmp/dsh-home-verify` 绕开宿主沙箱对 `~/.dsh` 的写限制，因此不需要动用户的真实 profile）：跑市场将来会执行的那条命令
+
+```bash
+DSH_HOME=/tmp/dsh-home-verify dsh plugin --profile smoke add dsh-usage-state
+DSH_HOME=/tmp/dsh-home-verify dsh --profile smoke --dump-config
+```
+
+结果：pnpm 从 npm 装上 `dsh-usage-state@0.3.0`（1.2s），装配树里出现我们贡献的那一行
+
+```yaml
+# == dsh-usage-state
+- id: usage-state
+  name: dsh-usage-state
+```
+
+即「npm 源 → profile 依赖 → patch 行 → 装配树」整条链路可用。**唯一的噪声是 pnpm 的 `✕ missing peer react`**：fresh profile 的依赖图里没有 react（浏览器半边的 react 是平台在运行时交给插件的，不走 node_modules），而我们 `peerDependencies` 里声明了 `react: ^18.2.0`。它只是警告（安装照常成功），且市场只对 `@deepseek-ai/dsh*` 的 peer 做兼容评估，所以不影响条目的兼容判定与徽标；是否移除这个 peer 仍在待定（见 §6 备忘）。
 
 **维护待办**：DSH 出现 0.2 发布线时复核 `engines.dsh` 区间（超出区间会被市场标 incompatible，可选筛选会因此隐藏条目）；改描述只改自己那条 yml，换截图只改本仓库的 `screenshots.json`，都不要动对方 README。
 
