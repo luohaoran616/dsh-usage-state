@@ -124,7 +124,7 @@
 1. **点击状态行进入设置页**——设计里写过"可点进设置"，但客户端没有公开的"打开设置面板"服务；(A) 方案改用悬浮提示承载细节，点击行为暂不做。
 2. **`.d.ts` 产物**——`tsdown` 配置 `dts: false`，不产出类型声明（运行时消费不需要）。
 3. **平台兼容性声明**——平台 manifest schema **没有** `compatibility` 字段（`dsh.bundle` / `dsh.client` / `profile` / `configTrees` / `sessionFormatMigration` / `moduleFallback` 才是它认识的）；实测环境是 DSH `0.1.5-rc.2` + Node ≥20（见 `engines`）。cost-meter 的 `dsh.compatibility` / `dshhub` 是市场元数据，未被平台读取。**DSH 版本要求本身**已按修订 14 用 `engines.dsh` 声明（市场读它做徽标与兼容判定）。
-4. **`peerDependencies.react` 是否移除**（待定）——端到端安装（§10）时 pnpm 报 `✕ missing peer react`：任何 profile 的依赖图里都没有 react（浏览器半边的 react 由平台在运行时注入，不走 node_modules），而我们在 `peerDependencies` 里声明了 `react: ^18.2.0`。它只是警告、安装照常成功，且市场只对 `@deepseek-ai/dsh*` 的 peer 做兼容评估（生态里 `dsh-better-sidebar` 等 UI 插件也不声明 react peer）。倾向下次发版时移除，让安装输出干净；不为此单独发一个版本。
+4. ~~**`peerDependencies.react` 是否移除**~~ → **已移除**（0.3.1，见 `design-consensus.md` 修订 15）：端到端安装（§10）时 pnpm 报 `✕ missing peer react`——任何 profile 的依赖图里都没有 react（浏览器半边的 react 由平台在运行时注入，不走 node_modules），而 `peerDependencies` 里却声明了它。移除后安装输出干净，且市场只对 `@deepseek-ai/dsh*` 的 peer 做兼容评估，不受影响；`react` 仍留在 `devDependencies` 供构建与类型使用。
 
 > 原"回合行的固定值 + Δ"已**结案否决**（账户级读数不放在回合上），见 `design-consensus.md` §13 修订 13；不再是待办项。
 
@@ -167,6 +167,7 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 | 文档一致性 | `b9dc1ad` 文档与实现对齐 · `ccde864` README 按公开仓库规范重写 · `4786f70` 过渡计划（`plans/`） · `118bad4` 统一软引用 · `c48a577` 修订号顺序 · `738285d` 引用修正 · `81ec95e` 修订 12 补记哈希 |
 | 结案：移除回合行（0.3.0） | `c644e4c` 否决修订 8/13 结案 + 移除回合行与动作条变体 + 实验结论入 §9 + README 按标准安装说明重排 |
 | 发布与收录（0.3.0） | `098a31c` 去 `private` + `engines.dsh` + README 安装段改 npm 优先 · `cf1acdf` 修订 14 / §10 发布与收录 |
+| 截图与 0.3.1（本轮） | `4ff2c0f` `screenshots.json` + `assets/screenshots/*` + README 内嵌 · 本条提交 移除 `peerDependencies.react`、发 0.3.1（修订 15） |
 
 ## 9. 从真机调试里学到的平台事实（下次直接复用）
 
@@ -216,7 +217,7 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 **本次上架记录**：条目 `data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`，PR [awesome-dsh-plugin#5646](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5646)（CI `check` + `Submission gate` 全绿）；仓库已加 `dsh-plugin` topic；`engines.dsh` = `>=0.1.5-rc.1 <0.2.0-0`。
 截图按市场约定声明在**本仓库**：`screenshots.json` 列 3 张（状态行 / 设置页供应商列表 / 高级区），图片在 `assets/screenshots/*.webp`（39–98 kB）；两个 README 也内嵌了同一组（用 `raw.githubusercontent.com` 绝对链接，GitHub 与 npm 页都能显示）。截图声明不需要再提 PR——市场下一次 nightly 构建会自行采集。
 
-**npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在。
+**npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。本机 web profile 已从 GitHub 源切到 npm 源（`pnpm-lock.yaml` 里 `specifier: ^0.3.0`、integrity 与发布输出逐字符一致），重启后运行中的客户端产物只剩 `conversation.composer.dock` 一个挂载点。**`0.3.1`**（同日准备）移除 `peerDependencies.react`（见修订 15），代码与文档已就绪，发布命令见 §7。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在。
 
 **端到端安装验证**（2026-09-22，把 `DSH_HOME` 指到 `/tmp/dsh-home-verify` 绕开宿主沙箱对 `~/.dsh` 的写限制，因此不需要动用户的真实 profile）：跑市场将来会执行的那条命令
 

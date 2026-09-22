@@ -174,3 +174,8 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
     - **兼容声明走 `engines.dsh: ">=0.1.5-rc.1 <0.2.0-0"`**，而不是 `dsh.compatibility`：核对 dsh-market 源码（`discovery-compatibility.ts`）后确认它读的是 **npm latest 清单**里的 `engines.dsh`（或 `dsh.engines.dsh`），其次是同版本线的 `@deepseek-ai/dsh-*` peerDependencies；`dsh.compatibility` / `dshhub` 那类字段市场根本不看。区间显式带上预发布比较符，否则 node-semver 会静默排除 `0.1.5-rc.*` 宿主（contributing.md 专门警告过这一点）。实测**平台自身从不读 `engines`**（grep 过 dsh 的 lib），所以这一项只影响市场，不影响安装。
     - **上架路径**：dsh-market 不搜 npm/GitHub，只在打开时拉 [`awesome-dsh-plugin.com/plugins.json`](https://awesome-dsh-plugin.com/plugins.json)，并拒绝安装列表外的来源；列表由 `awesome-dsh-plugin` 仓库的 `data/plugins/*.yml` 生成 → 收录 = 给对方提一个 YAML 文件的 PR（`data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`），另需仓库打 `dsh-plugin` topic、仓库创建满 1 天。
     **代价与维护义务（需知悉）**：① 市场对 `engines` 判定是**硬**的（peer 的 caret/tilde 上限反而宽容），所以 DSH 出现新发布线（0.2）时必须复核并放宽这个区间，否则新宿主上会被标成 incompatible（默认只是标注，可选筛选会隐藏）；② 改描述只能改自己那条 yml 再提 PR，**不要**手改对方 README（生成物）；③ 条目会被定期扫描，停更/归档会被移除。
+
+15. **移除 `peerDependencies.react`**（0.3.1）
+    起因是端到端安装验证（`implementation.md` §10）：把 `DSH_HOME` 指到 `/tmp` 后跑 `dsh plugin --profile smoke add dsh-usage-state`，pnpm 报 `✕ missing peer react`。原因是任何 profile 的依赖图里都没有 react——浏览器半边的 react 由平台在**运行时**注入（客户端产物是 CJS 工厂，靠平台模块表拿到 React），根本不走 node_modules；而我们从一开始就在 `peerDependencies` 里声明了 `react: ^18.2.0`（那是 React 库的惯例，不是 DSH 插件的惯例）。
+    现决策：**移除该 peer**，`react` 仍留在 `devDependencies` 供构建与类型检查使用。
+    **代价（需知悉）**：几乎没有——市场只对 `@deepseek-ai/dsh*` 的 peer 做兼容评估（我们另有 `engines.dsh` 承担版本声明），安装照常成功，只是不再有那行警告；生态里 `dsh-better-sidebar` 等 UI 插件同样不声明 react peer。

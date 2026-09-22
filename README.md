@@ -122,7 +122,7 @@ dsh plugin --profile web add /path/to/dsh-usage-state
 
 - 实测环境：DSH `0.1.5-rc.2`，Node ≥ 20；DSH 版本要求通过 `engines.dsh` 声明为 `>=0.1.5-rc.1 <0.2.0-0`（dsh-market 的兼容徽标读的就是它）。
 - 同名发布在 npm（[`dsh-usage-state`](https://www.npmjs.com/package/dsh-usage-state)），也可从 GitHub 直接安装。
-- 版本 `0.3.0`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
+- 版本 `0.3.1`：DeepSeek、z.ai 与 OpenCode Zen Go 已在真机验证，其余见下。
 
 ## 已知限制
 

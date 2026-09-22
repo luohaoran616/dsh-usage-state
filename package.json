@@ -1,6 +1,6 @@
 {
   "name": "dsh-usage-state",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "DSH plugin: show account balance (API mode) or coding-plan quota (5h/7d/30d) for the model in use",
   "license": "MIT",
@@ -69,9 +69,6 @@
     "LICENSE",
     "docs/adapters.md"
   ],
-  "peerDependencies": {
-    "react": "^18.2.0"
-  },
   "keywords": [
     "deepseek",
     "dsh",

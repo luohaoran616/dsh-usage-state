@@ -98,7 +98,7 @@ Expanding **Advanced** lets you override the source and endpoint, name a credent
 
 - Verified against DSH `0.1.5-rc.2`, Node ≥ 20; the DSH requirement is declared as `>=0.1.5-rc.1 <0.2.0-0` through `engines.dsh` (this is what dsh-market's compatibility badge reads).
 - Published to npm as [`dsh-usage-state`](https://www.npmjs.com/package/dsh-usage-state); GitHub installs work too.
-- Version `0.3.0`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
+- Version `0.3.1`: DeepSeek, z.ai and OpenCode Zen Go are verified against live accounts; see the limitations below.
 
 ## Limitations
 
