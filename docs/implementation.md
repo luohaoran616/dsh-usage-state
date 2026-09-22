@@ -167,7 +167,8 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 | 文档一致性 | `b9dc1ad` 文档与实现对齐 · `ccde864` README 按公开仓库规范重写 · `4786f70` 过渡计划（`plans/`） · `118bad4` 统一软引用 · `c48a577` 修订号顺序 · `738285d` 引用修正 · `81ec95e` 修订 12 补记哈希 |
 | 结案：移除回合行（0.3.0） | `c644e4c` 否决修订 8/13 结案 + 移除回合行与动作条变体 + 实验结论入 §9 + README 按标准安装说明重排 |
 | 发布与收录（0.3.0） | `098a31c` 去 `private` + `engines.dsh` + README 安装段改 npm 优先 · `cf1acdf` 修订 14 / §10 发布与收录 |
-| 截图与 0.3.1（本轮） | `4ff2c0f` `screenshots.json` + `assets/screenshots/*` + README 内嵌 · 本条提交 移除 `peerDependencies.react`、发 0.3.1（修订 15） |
+| 截图与 0.3.1 | `4ff2c0f` `screenshots.json` + `assets/screenshots/*` + README 内嵌 · `9f8b863` 移除 `peerDependencies.react`、发 0.3.1（修订 15） |
+| 收录结果（本轮） | 见上（条目 PR 已合并、条目已在 plugins.json）；本文件的收录记录与 README 的 dsh-market 说明由本条提交补记 |
 
 ## 9. 从真机调试里学到的平台事实（下次直接复用）
 
@@ -214,10 +215,14 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 4. 卡片上的 `DSH …` 徽标与兼容判定来自 **npm latest 清单**：`engines.dsh`（或 `dsh.engines.dsh`）优先，其次同版本线的 `@deepseek-ai/dsh-*` peerDependencies；两者都没声明（或没有 npm 包）→ 状态 unknown，条目仍可见，只是没有下载量与徽标。市场对 `engines` 是**硬判定**，对 peer 的 caret/tilde 上限反而宽容。
 5. 截图可选，放在**本仓库**的 `screenshots.json`（1–8 张，路径相对该文件，或 GitHub 托管的 https）；不声明则市场从 README 自动抽取。
 
-**本次上架记录**：条目 `data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`，PR [awesome-dsh-plugin#5646](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5646)（CI `check` + `Submission gate` 全绿）；仓库已加 `dsh-plugin` topic；`engines.dsh` = `>=0.1.5-rc.1 <0.2.0-0`。
+**本次上架记录**：条目 `data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`，PR [awesome-dsh-plugin#5646](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5646)（CI `check` + `Submission gate` 全绿），**已于 2026-09-22T07:20:07Z 被 `fkysly` 合并**（merge commit `f48265c`）；仓库已加 `dsh-plugin` topic；`engines.dsh` = `>=0.1.5-rc.1 <0.2.0-0`。
+
+**收录结果（已核验）**：合并后站点重建，`plugins.json` 从 4125 涨到 4145 条，我们的条目在列——`category: usage`、中英描述、`added: 2026-09-22`，且**三张截图被正确采集**（`https://raw.githubusercontent.com/takboo/dsh-usage-state/HEAD/assets/screenshots/*.webp`）；上游生成的 `README.zh.md` 第 976 行也出现了我们那一行。即时可搜索、可安装。
+**已知的滞后项**：条目里 `npm` / `version` / `stars` / `downloads` 目前都是 `null`，`install` 仍是 `dsh plugin --profile web add github:takboo/dsh-usage-state`——目录的 npm 映射与 star 数由 CI **每日刷新**（`dshmarket` README 明说），下一次刷新后应变成 `npm: dsh-usage-state` / `version: 0.3.1` / 下载量与 npm 安装命令。这不影响收录与安装。
 截图按市场约定声明在**本仓库**：`screenshots.json` 列 3 张（状态行 / 设置页供应商列表 / 高级区），图片在 `assets/screenshots/*.webp`（39–98 kB）；两个 README 也内嵌了同一组（用 `raw.githubusercontent.com` 绝对链接，GitHub 与 npm 页都能显示）。截图声明不需要再提 PR——市场下一次 nightly 构建会自行采集。
 
-**npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。本机 web profile 已从 GitHub 源切到 npm 源（`pnpm-lock.yaml` 里 `specifier: ^0.3.0`、integrity 与发布输出逐字符一致），重启后运行中的客户端产物只剩 `conversation.composer.dock` 一个挂载点。**`0.3.1`**（同日准备）移除 `peerDependencies.react`（见修订 15），代码与文档已就绪，发布命令见 §7。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在。
+**npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。本机 web profile 已从 GitHub 源切到 npm 源（`pnpm-lock.yaml` 里 `specifier: ^0.3.0`、integrity 与发布输出逐字符一致），重启后运行中的客户端产物只剩 `conversation.composer.dock` 一个挂载点。**`0.3.1`**（同日发布）移除 `peerDependencies.react`（见修订 15）。验证：在**全新 pnpm store + 全新 XDG** 下跑 `dsh plugin --profile smoke add dsh-usage-state` → 装到 **0.3.1**、profile 里写 `^0.3.1`、**不再出现 `✕ missing peer react`**（只剩 pnpm 那句 `Added 1 entry to minimumReleaseAgeExclude` 提示，与我们的包无关）。
+踩过的坑：第一次复用了同一个 pnpm store，metadata 缓存里还只有 0.3.0，于是装到 0.3.0 并照旧报 peer 警告——那是我自己的缓存假象，不是发布问题。另注意 pnpm 12 对**刚发布**的版本有内置静置期（`pnpm config get minimumReleaseAge` 为 `undefined`，说明是默认值而非显式配置），它会自动往 profile 的 `pnpm-workspace.yaml` 写 `minimumReleaseAgeExclude` 并在装好后打印提示；所以"刚发的版本要显式指定或等静置期过去"是**预期行为**，不是故障。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在。
 
 **端到端安装验证**（2026-09-22，把 `DSH_HOME` 指到 `/tmp/dsh-home-verify` 绕开宿主沙箱对 `~/.dsh` 的写限制，因此不需要动用户的真实 profile）：跑市场将来会执行的那条命令
 

@@ -46,6 +46,8 @@ For development, a local path works too (host-side changes still need a DSH rest
 dsh plugin --profile web add /path/to/dsh-usage-state
 ```
 
+It is also listed in [dsh-market](https://github.com/dsh-market/dsh-market): search for `usage state` (or `takboo`) and install it in one click — the plugin is on the [awesome-dsh-plugin](https://awesome-dsh-plugin.com) curated list under Usage & Billing.
+
 Nothing showing up after installing? See the troubleshooting table at the end of [`docs/adapters.md`](docs/adapters.md).
 
 ## Quick start

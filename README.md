@@ -48,6 +48,8 @@ dsh plugin --profile web add github:takboo/dsh-usage-state
 dsh plugin --profile web add /path/to/dsh-usage-state
 ```
 
+也可以在 [dsh-market](https://github.com/dsh-market/dsh-market) 里搜索 `usage state`（或 `takboo`）一键安装——本插件已收录在精选列表 [awesome-dsh-plugin](https://awesome-dsh-plugin.com) 的「用量与计费」分类。
+
 装好后界面没有出现？见 [`docs/adapters.md`](docs/adapters.md) 末尾的排查表。
 
 ## 快速开始
