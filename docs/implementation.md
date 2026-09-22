@@ -217,3 +217,14 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 **npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在——即 `dsh plugin add dsh-usage-state` 需要的三样东西齐备（profile 级的真机安装未在本机跑：宿主沙箱不允许写 `~/.dsh/profiles/*`）。
 
 **维护待办**：DSH 出现 0.2 发布线时复核 `engines.dsh` 区间（超出区间会被市场标 incompatible，可选筛选会因此隐藏条目）；改描述只改自己那条 yml，换截图只改本仓库的 `screenshots.json`，都不要动对方 README。
+
+**收录自检**（合并后随时可跑；列表约 4 MB，站点在合并后自动重建，通常一天内生效）：
+
+```bash
+curl -s https://awesome-dsh-plugin.com/plugins.json | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print([p for p in d['plugins'] if p['owner']=='takboo'] or 'not listed yet')"
+```
+
+**上游节奏（2026-09-22 观测）**：维护者是**批量合并**（某次连续 6 个条目 PR 在同一分钟内合掉，最早的一个已等了约 6 小时），同时开放着 100+ 个待审 PR——从提交到收录按「天」预期，别按分钟等。
