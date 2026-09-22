@@ -141,6 +141,9 @@ npm run watch                                   # 只重建 client.js → 客户
 dsh plugin --profile web add "$PWD"             # 本地装入（会自动加入 profile bundles）
 dsh --profile web --dump-config                 # 不启动服务，仅组装 profile 树（校验行是否合法）
 dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
+
+npm pack --dry-run --cache /tmp/npm-cache       # 发布前核对 npm 内容
+npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 --cache；需要 2FA（见 §10）
 ```
 
 宿主半边改动**需要重启 DSH**；客户端半边改动 `npm run watch` 即可热替换。
@@ -162,6 +165,7 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
 | 发布后修复 | `e4d40d7` 幽灵 provider 行（0.2.1） · `7adb90e` 三处健壮性 + 不再轮询已删 provider（0.2.2） · `dd37b3d` 设置页卡头部不换行 + 溯源致谢（0.2.3） |
 | 文档一致性 | `b9dc1ad` 文档与实现对齐 · `ccde864` README 按公开仓库规范重写 · `4786f70` 过渡计划（`plans/`） · `118bad4` 统一软引用 · `c48a577` 修订号顺序 · `738285d` 引用修正 · `81ec95e` 修订 12 补记哈希 |
 | 结案：移除回合行（0.3.0） | `c644e4c` 否决修订 8/13 结案 + 移除回合行与动作条变体 + 实验结论入 §9 + README 按标准安装说明重排 |
+| 发布与收录（0.3.0） | `098a31c` 去 `private` + `engines.dsh` + README 安装段改 npm 优先（本文件的修订 14 / §10 由后续提交补记） |
 
 ## 9. 从真机调试里学到的平台事实（下次直接复用）
 
@@ -190,3 +194,26 @@ dsh plugin --profile web remove dsh-usage-state # 出问题时的恢复命令
     ```
 11. **回合级插槽都不适合承载常显的行**：`conversation.chat.turnTail` 是 chain（单赢家，`dsh-client-ui-deliverables` 与 `dsh-better-sidebar` 都注册在此），任何产出文件的回合都会把它们之一选为赢家，其他条目**不会被询问**，`select` 又被契约要求是纯函数、无法让路；`conversation.chat.assistant-actions` 是 list 槽（无抢占），但由平台渲染在**回合动作条**内，而该条在**非最新回合是 `opacity: 0` + `:hover` 才显示**（平台自己的每回合 token/耗时面板也在那里；`MessageIconActions.extraActions` 的位置由平台固定——类型注释原文 *"placed between the built-in copy and branch controls"*，且整条只有 28px 高）。
     这条事实与"要不要在回合上展示账户读数"是两件事：后者已按 `design-consensus.md` 修订 13 **否决**（账户级读数不属于回合），因此本插件现在只挂 `conversation.composer.dock`；上面这些平台行为记录下来，是为了下次有人想在回合动作条里放东西时不必重新踩一遍。
+
+## 10. 发布与收录（npm / dsh-market）
+
+**分发形态**：同一份 `lib/` 供三条安装路径——npm 包 `dsh-usage-state`、`dsh plugin add github:takboo/dsh-usage-state`、本地目录。仓库始终带预构建产物，所以三条路都没有构建步骤。
+
+- 发布前核对内容：`npm pack --dry-run --cache /tmp/npm-cache`。`files` 白名单 = `lib` + `cordis.patch.yml` + 两个 README + LICENSE + `docs/adapters.md`（9 个文件、50.5 kB）。
+- 本机 `~/.npm` 不可写时必须带 `--cache /tmp/npm-cache`：否则报 `EPERM`，而 npm 的提示会把它误导成 "cache folder contains root-owned files"（真实原因是写不进去）。
+- `npm publish` 需要 2FA：非交互执行会以 `EOTP` 结束并给出 web-auth 链接，浏览器走完认证后再跑一次即可；有认证器可直接 `--otp=<6 位>`。
+- 已发布包的 `repository` 必须指回本仓库——市场的 npm 映射靠它自动关联，条目 yml 里手写 `npm:` 会被校验拒绝。
+
+**dsh-market 收录链路**（2026-09-22 对着 dshmarket 1.52.0 源码与 contributing.md 核对）：
+
+1. 市场**不搜索** npm/GitHub，每次打开实时拉 `https://awesome-dsh-plugin.com/plugins.json`（拉取时 4062 条；可用 `DSHM_REGISTRY_URL` 指镜像），**只允许安装列表内的来源**，并刻意不做本地快照兜底。
+2. 列表由 `awesome-dsh-plugin/awesome-dsh-plugin` 的 `data/plugins/*.yml` 生成（两个 README 是生成物，禁止手改）。收录 = 提一个 YAML 文件的 PR：`url` / `name` / `category` / `description.{en,zh}`，只有 `description.en` 必填；描述会被逐句对着源码核，必须属实、不带营销词；一个 PR 最多 3 条。
+3. 硬性门槛：仓库声明 `dsh.bundle`（**只有** `dsh.client` 会被拒）、仓库创建满 1 天、仓库打 `dsh-plugin` topic。
+4. 卡片上的 `DSH …` 徽标与兼容判定来自 **npm latest 清单**：`engines.dsh`（或 `dsh.engines.dsh`）优先，其次同版本线的 `@deepseek-ai/dsh-*` peerDependencies；两者都没声明（或没有 npm 包）→ 状态 unknown，条目仍可见，只是没有下载量与徽标。市场对 `engines` 是**硬判定**，对 peer 的 caret/tilde 上限反而宽容。
+5. 截图可选，放在**本仓库**的 `screenshots.json`（1–8 张，路径相对该文件，或 GitHub 托管的 https）；不声明则市场从 README 自动抽取。
+
+**本次上架记录**：条目 `data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`，PR [awesome-dsh-plugin#5646](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5646)（CI `check` + `Submission gate` 全绿）；仓库已加 `dsh-plugin` topic；`engines.dsh` = `>=0.1.5-rc.1 <0.2.0-0`。
+
+**npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在——即 `dsh plugin add dsh-usage-state` 需要的三样东西齐备（profile 级的真机安装未在本机跑：宿主沙箱不允许写 `~/.dsh/profiles/*`）。
+
+**维护待办**：DSH 出现 0.2 发布线时复核 `engines.dsh` 区间（超出区间会被市场标 incompatible，可选筛选会因此隐藏条目）；改描述只改自己那条 yml，换截图只改本仓库的 `screenshots.json`，都不要动对方 README。

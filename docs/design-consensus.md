@@ -101,7 +101,8 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
 3. DeepSeek 余额出现在 composer 统计行正下方（`conversation.composer.dock`；原"回合动作条"位置已按修订 13 移除）。
 4. 刷新插件/重启 DSH 后配置保留。
 5. 验收通过后**卸载 `dsh-cost-meter`** ✅ 已完成，确认状态行无重复。
-6. `gh` 建仓推送 `takboo/dsh-usage-state`，验证 `dsh plugin add github:takboo/dsh-usage-state` 可装。
+6. `gh` 建仓推送 `takboo/dsh-usage-state`，验证 `dsh plugin add github:takboo/dsh-usage-state` 可装。✅
+7. 发布 npm 包并收录进 dsh-market（见修订 14）。
 
 ## 11. 已知风险与未验证项
 
@@ -166,3 +167,10 @@ font-size: var(--dsh-content-font-size-secondary, 13px);
     现决策：**移除该位置**，状态行只有一个家——`conversation.composer.dock`。`src/client/slots.ts` 退化为单一挂载点 + 测试守卫（同时禁止 `conversation.chat.turnTail` 与 `conversation.chat.assistant-actions` 被重新加回），为动作条做的减法（`compactParts`、`ACTIONS_STYLE`、CSS `order: 1`、模型图标替代标签）全部删除。
     **代价（需知悉）**：翻旧回合时不再能看到"当时的读数"。若将来仍想要账户的历史轨迹，诚实的形态是**按时间**而不是按回合（例如 dock 行悬停给出最近几条带本地时间的读数）；那属于本插件"不做历史趋势图/面板"之外的新决定，需要单独讨论并新写一条修订，不能顺手加回。
     **顺带沉淀的平台事实**：外部插件事件在 DSH 0.1.5-rc.2 **不可写**（见 `implementation.md` §9），这是"回合轨迹跟着会话走"这类需求的硬约束。
+
+14. **分发：发布 npm 包 + 收录进 dsh-market**（0.3.0）
+    原决策是"只从 GitHub 安装、不发布 npm"（`private: true`），理由是仓库自带预构建 `lib/`、`dsh plugin add github:` 已经够用。用户随后要求"能被 dsh-market 搜索和安装"，而市场只认精选列表，且卡片上的兼容徽标与下载量都来自 npm，于是改变：
+    - **发 npm**（`dsh-usage-state`）：去掉 `private: true`；发布内容是同一份 `lib/`（`files` 白名单：`lib` + `cordis.patch.yml` + README/LICENSE + `docs/adapters.md`，9 个文件 50.5 kB）。npm 发布让市场能显示下载量，也让预构建安装免 `allowBuilds` 授权。
+    - **兼容声明走 `engines.dsh: ">=0.1.5-rc.1 <0.2.0-0"`**，而不是 `dsh.compatibility`：核对 dsh-market 源码（`discovery-compatibility.ts`）后确认它读的是 **npm latest 清单**里的 `engines.dsh`（或 `dsh.engines.dsh`），其次是同版本线的 `@deepseek-ai/dsh-*` peerDependencies；`dsh.compatibility` / `dshhub` 那类字段市场根本不看。区间显式带上预发布比较符，否则 node-semver 会静默排除 `0.1.5-rc.*` 宿主（contributing.md 专门警告过这一点）。实测**平台自身从不读 `engines`**（grep 过 dsh 的 lib），所以这一项只影响市场，不影响安装。
+    - **上架路径**：dsh-market 不搜 npm/GitHub，只在打开时拉 [`awesome-dsh-plugin.com/plugins.json`](https://awesome-dsh-plugin.com/plugins.json)，并拒绝安装列表外的来源；列表由 `awesome-dsh-plugin` 仓库的 `data/plugins/*.yml` 生成 → 收录 = 给对方提一个 YAML 文件的 PR（`data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`），另需仓库打 `dsh-plugin` topic、仓库创建满 1 天。
+    **代价与维护义务（需知悉）**：① 市场对 `engines` 判定是**硬**的（peer 的 caret/tilde 上限反而宽容），所以 DSH 出现新发布线（0.2）时必须复核并放宽这个区间，否则新宿主上会被标成 incompatible（默认只是标注，可选筛选会隐藏）；② 改描述只能改自己那条 yml 再提 PR，**不要**手改对方 README（生成物）；③ 条目会被定期扫描，停更/归档会被移除。
