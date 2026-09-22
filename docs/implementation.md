@@ -168,7 +168,7 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 | 结案：移除回合行（0.3.0） | `c644e4c` 否决修订 8/13 结案 + 移除回合行与动作条变体 + 实验结论入 §9 + README 按标准安装说明重排 |
 | 发布与收录（0.3.0） | `098a31c` 去 `private` + `engines.dsh` + README 安装段改 npm 优先 · `cf1acdf` 修订 14 / §10 发布与收录 |
 | 截图与 0.3.1 | `4ff2c0f` `screenshots.json` + `assets/screenshots/*` + README 内嵌 · `9f8b863` 移除 `peerDependencies.react`、发 0.3.1（修订 15） |
-| 收录结果（本轮） | 见上（条目 PR 已合并、条目已在 plugins.json）；本文件的收录记录与 README 的 dsh-market 说明由本条提交补记 |
+| 收录结果（本轮） | 条目 PR 已合并、条目已在 plugins.json；本条补记「站点 ≠ 市场」的目录双源事实与修正后的自检命令 |
 
 ## 9. 从真机调试里学到的平台事实（下次直接复用）
 
@@ -217,8 +217,10 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 
 **本次上架记录**：条目 `data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`，PR [awesome-dsh-plugin#5646](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5646)（CI `check` + `Submission gate` 全绿），**已于 2026-09-22T07:20:07Z 被 `fkysly` 合并**（merge commit `f48265c`）；仓库已加 `dsh-plugin` topic；`engines.dsh` = `>=0.1.5-rc.1 <0.2.0-0`。
 
-**收录结果（已核验）**：合并后站点重建，`plugins.json` 从 4125 涨到 4145 条，我们的条目在列——`category: usage`、中英描述、`added: 2026-09-22`，且**三张截图被正确采集**（`https://raw.githubusercontent.com/takboo/dsh-usage-state/HEAD/assets/screenshots/*.webp`）；上游生成的 `README.zh.md` 第 976 行也出现了我们那一行。即时可搜索、可安装。
-**已知的滞后项**：条目里 `npm` / `version` / `stars` / `downloads` 目前都是 `null`，`install` 仍是 `dsh plugin --profile web add github:takboo/dsh-usage-state`——目录的 npm 映射与 star 数由 CI **每日刷新**（`dshmarket` README 明说），下一次刷新后应变成 `npm: dsh-usage-state` / `version: 0.3.1` / 下载量与 npm 安装命令。这不影响收录与安装。
+**收录结果（2026-09-22 核验，含一处重要更正）**：合并后**站点**（GitHub Pages）立刻重建，`https://awesome-dsh-plugin.com/plugins.json` 从 4125 涨到 **4145** 条，我们的条目在列——`category: usage`、中英描述、`added: 2026-09-22`，三张截图被正确采集，上游生成的 `README.zh.md` 第 976 行也出现了我们那一行。
+**但「站点里有」≠「市场里能搜到」**：市场按 region 选目录源（`dshmarket` 的 `regions.ts`），**中国大陆区优先读 npm 包 `dsh-plugin-catalog`**（走腾讯云 npm 镜像 `mirrors.cloud.tencent.com/npm`，实时站点只作为失败回退），而那个包是**每日 ~03:30Z 构建**的：观测到的最近 6 次都是 `2026.9xx.NNNN`（版本号里就是条数），最新 `2026.922.4045` 发布于 **2026-09-22T03:35:06Z**，包内 `count=4125`、**不含我们**（我们的 PR 是 07:20Z 合并的）。所以当天在中国区市场搜不到，要等次日构建；`全球` 区直接读实时站点，立即可见。
+**已安装卡片的元数据匹配**：市场客户端用 `plugin.npm === name || plugin.name === name` 把已安装包关联到目录条目（`MarketSection.tsx`）。我们的条目 `name` 就是 `dsh-usage-state`，所以条目一旦进入市场所读的那份目录，卡片就会带上描述/分类/star；`npm` / `version` / `downloads` / `install` 命令与 `DSH …` 徽标（读 npm latest 的 `engines.dsh`）同样在那次每日构建里补齐——我们的 `repository` 已指回本仓库，映射条件满足。
+**教训（写进自检命令）**：只查实时站点会得出"已收录"的乐观结论。自检要同时查市场真正读的那份每日目录包。
 截图按市场约定声明在**本仓库**：`screenshots.json` 列 3 张（状态行 / 设置页供应商列表 / 高级区），图片在 `assets/screenshots/*.webp`（39–98 kB）；两个 README 也内嵌了同一组（用 `raw.githubusercontent.com` 绝对链接，GitHub 与 npm 页都能显示）。截图声明不需要再提 PR——市场下一次 nightly 构建会自行采集。
 
 **npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。本机 web profile 已从 GitHub 源切到 npm 源（`pnpm-lock.yaml` 里 `specifier: ^0.3.0`、integrity 与发布输出逐字符一致），重启后运行中的客户端产物只剩 `conversation.composer.dock` 一个挂载点。**`0.3.1`**（同日发布）移除 `peerDependencies.react`（见修订 15）。验证：在**全新 pnpm store + 全新 XDG** 下跑 `dsh plugin --profile smoke add dsh-usage-state` → 装到 **0.3.1**、profile 里写 `^0.3.1`、**不再出现 `✕ missing peer react`**（只剩 pnpm 那句 `Added 1 entry to minimumReleaseAgeExclude` 提示，与我们的包无关）。
@@ -243,13 +245,22 @@ DSH_HOME=/tmp/dsh-home-verify dsh --profile smoke --dump-config
 
 **维护待办**：DSH 出现 0.2 发布线时复核 `engines.dsh` 区间（超出区间会被市场标 incompatible，可选筛选会因此隐藏条目）；改描述只改自己那条 yml，换截图只改本仓库的 `screenshots.json`，都不要动对方 README。
 
-**收录自检**（合并后随时可跑；列表约 4 MB，站点在合并后自动重建，通常一天内生效）：
+**收录自检**（合并后随时可跑）。**两个源都要查**：站点是合并后立刻重建的，而中国大陆区市场读的是每日构建的 npm 目录包——只查站点会把"站点已收录"误当成"市场能搜到"：
 
 ```bash
+# 1) 实时站点（≈ 全球区市场看到的）
 curl -s https://awesome-dsh-plugin.com/plugins.json | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
-print([p for p in d['plugins'] if p['owner']=='takboo'] or 'not listed yet')"
+print('site:', d['count'], d['updated'], [p['name'] for p in d['plugins'] if p['owner']=='takboo'] or 'no')"
+
+# 2) 每日目录包（≈ 中国大陆区市场看到的；确认包内条数是否已包含我们）
+curl -s https://registry.npmjs.org/dsh-plugin-catalog | python3 -c "
+import json,sys
+d=json.load(sys.stdin); v=d['dist-tags']['latest']
+print('catalog pkg:', v, 'published', d['time'][v])"
 ```
+
+判据：站点条数与我们条目都在 → 全球区可见；目录包的版本号（`YYYY.MDD.NNNN`，NNNN 是条数）大于我们合并时的条数 → 中国区可见。
 
 **上游节奏（2026-09-22 观测）**：维护者是**批量合并**（某次连续 6 个条目 PR 在同一分钟内合掉，最早的一个已等了约 6 小时），同时开放着 100+ 个待审 PR——从提交到收录按「天」预期，别按分钟等。
