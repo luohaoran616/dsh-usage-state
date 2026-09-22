@@ -58,6 +58,20 @@ If a source needs an endpoint or a key (a self-hosted Sub2API, or a provider wit
 
 A very long provider name never pushes the controls around: the card header stays on one line and only the grey provider id is truncated (hover it for the full text).
 
+## Screenshots
+
+The reading directly below the composer's stats row (shown here with OpenCode Zen Go's three windows; hover any segment for source, mode and the absolute reset time):
+
+![The reading below the composer](https://raw.githubusercontent.com/takboo/dsh-usage-state/main/assets/screenshots/status-line.webp)
+
+Settings: one row per provider; **Auto** detects the data source and its primary mode:
+
+![Provider list in the settings page](https://raw.githubusercontent.com/takboo/dsh-usage-state/main/assets/screenshots/settings-providers.webp)
+
+Expanding **Advanced** lets you override the source and endpoint, name a credential, or paste a key (written to the DSH credential store):
+
+![Advanced block](https://raw.githubusercontent.com/takboo/dsh-usage-state/main/assets/screenshots/settings-advanced.webp)
+
 ## Supported sources
 
 | Source | API mode | Coding-plan mode | Credential |

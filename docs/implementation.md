@@ -214,6 +214,7 @@ npm publish --cache /tmp/npm-cache              # ~/.npm 不可写时必须带 -
 5. 截图可选，放在**本仓库**的 `screenshots.json`（1–8 张，路径相对该文件，或 GitHub 托管的 https）；不声明则市场从 README 自动抽取。
 
 **本次上架记录**：条目 `data/plugins/takboo__dsh-usage-state.yml`，分类 `usage`，PR [awesome-dsh-plugin#5646](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5646)（CI `check` + `Submission gate` 全绿）；仓库已加 `dsh-plugin` topic；`engines.dsh` = `>=0.1.5-rc.1 <0.2.0-0`。
+截图按市场约定声明在**本仓库**：`screenshots.json` 列 3 张（状态行 / 设置页供应商列表 / 高级区），图片在 `assets/screenshots/*.webp`（39–98 kB）；两个 README 也内嵌了同一组（用 `raw.githubusercontent.com` 绝对链接，GitHub 与 npm 页都能显示）。截图声明不需要再提 PR——市场下一次 nightly 构建会自行采集。
 
 **npm 发布记录**：`dsh-usage-state@0.3.0` 已发布（2026-09-22），`repository` 指回本仓库、`engines.dsh` 随包带出（`npm view` 已核对）。发布后在 `/tmp` 做了一次产物级安装校验：安装树里 `package.json` 的 `dsh.bundle.patch`、`cordis.patch.yml`（`insert.name: dsh-usage-state`）、`lib/{index,client,typert}.js` 全部存在。
 

@@ -60,6 +60,20 @@ dsh plugin --profile web add /path/to/dsh-usage-state
 
 供应商名过长时，卡片头部只截断灰色的 provider id（悬停显示全文），右侧的 `↑ ↓ 自动 / Coding Plan / 隐藏` 不会换行。
 
+## 截图
+
+输入框统计行正下方的账户读数（图示为 OpenCode Zen Go 的三个窗口，悬停任意一段可看数据源、模式与绝对重置时刻）：
+
+![输入框下方的账户读数](https://raw.githubusercontent.com/takboo/dsh-usage-state/main/assets/screenshots/status-line.webp)
+
+设置页：每个 provider 一行，默认「自动」会识别数据源与主模式：
+
+![设置页的供应商列表](https://raw.githubusercontent.com/takboo/dsh-usage-state/main/assets/screenshots/settings-providers.webp)
+
+展开「高级」可覆盖数据源与端点、指定凭据名，或写入密钥（写入 DSH 凭据库）：
+
+![高级区](https://raw.githubusercontent.com/takboo/dsh-usage-state/main/assets/screenshots/settings-advanced.webp)
+
 ## 支持的数据源
 
 | 数据源 | API 模式 | Coding Plan 模式 | 凭据 |
