@@ -172,3 +172,13 @@ tests/           与 src 对应；tests/build 校验的是产物本身
 ## 许可
 
 [MIT](LICENSE)
+
+---
+
+## Fork 说明（dsh 0.1.7 适配）
+
+本 fork 由 luohaoran616 维护，目标：在 dsh 0.1.7-rc.2 上恢复工作。相对上游 0.3.1 的改动：
+
+1. **客户端**：dsh 0.1.7 移除了客户端 `settingsScope` 服务（设置系统改为宿主命名空间 + `remote.settings`）。以内存作用域 stub 替代——所有供应商按默认「自动」解析，设置页改动仅会话内生效、不持久化。
+2. **宿主**：Typert RPC（0.1.5-rc.2 协议）在 0.1.7 无法挂载，改为 webServer HTTP 路由（`GET /plugins/usage-state/api/state`、`/credentials`），客户端直接同源 fetch。`lib/typert.js` 保留但不再使用。
+3. 安装：`dsh plugin --profile web add github:luohaoran616/dsh-usage-state`（或本地路径）。上游若完成 0.1.7 适配，欢迎回切。

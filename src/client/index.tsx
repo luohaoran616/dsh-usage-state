@@ -10,74 +10,76 @@ import { STATUS_LINE_SLOTS } from './slots.ts'
 import { UsageStateClientStore } from './store.ts'
 import type { ClientContextLike, CredentialsRemoteLike, ModelCatalogLike, RemoteServiceLike, SettingsScopeLike } from './context.ts'
 
-// `remote.session` carries the model catalog and `remote.credentials` the key
-// store; both are platform-provided service names that must be declared here or
-// `ctx.remote.<ns>` is undefined at call time.
-export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.session', 'remote.credentials']
+// `remote.session` carries the model catalog; it is a platform-provided service
+// name that must be declared here or `ctx.remote.<ns>` is undefined at call time.
+// Fork note (dsh 0.1.7): `settingsScope` was removed upstream (settings moved to
+// host-owned namespaces over `remote.settings`) and the host RPC now travels over
+// webServer HTTP routes instead of Typert, so neither is injected here.
+export const inject = ['slots', 'locale', 'remote', 'remote.session', 'remote.credentials']
 
-const USAGE_STATE_NS = 'usage-state'
 const POLL_INTERVAL_MS = 30_000
-
-/** Hand-rolled codecs: the browser bundle must not carry zod. */
-const booleanOrUndefined = {
-  mode: 'strict' as const,
-  typeSymbol: 'dsh-usage-state#Force',
-  schema: { parse: (value: unknown) => (value === undefined ? undefined : value === true) },
-}
-
-const srcJson = { mode: 'src-json' as const }
-
-/** Must mirror `src/host/typert.ts`: the wire endpoint is `<namespace>/<method>`. */
-const CONTRIBUTION = {
-  package: 'dsh-usage-state',
-  descriptors: [
-    {
-      id: 'dsh-usage-state#usageState/getState',
-      service: 'usageState',
-      namespace: 'usageState',
-      method: 'getState',
-      invocation: { kind: 'direct' as const },
-      parameters: [{ name: 'force', wire: 'force', source: 'json' as const, acceptsUndefined: true, codec: booleanOrUndefined }],
-      result: srcJson,
-    },
-    {
-      id: 'dsh-usage-state#usageState/describeCredentials',
-      service: 'usageState',
-      namespace: 'usageState',
-      method: 'describeCredentials',
-      invocation: { kind: 'direct' as const },
-      parameters: [],
-      result: srcJson,
-    },
-  ],
-}
+const API_PREFIX = '/plugins/usage-state/api'
 
 export function apply(ctx: ClientContextLike): void {
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'dsh-usage-state: dictionaries')
   const t = ctx.locale.bind(LOCALE_NS)
 
-  const settings: SettingsScopeLike<UsageStateConfig> = ctx.settingsScope.bind<UsageStateConfig>({
-    namespace: USAGE_STATE_NS,
-    // The host already resolved this section; normalizing again keeps a
-    // hand-edited document from reaching the components as a broken shape.
-    decode: section => normalizeConfig(section),
-  })
+  // Fork note (dsh 0.1.7): the platform client `settingsScope` service is gone.
+  // This in-memory scope keeps every provider on its default (`自动`) resolution —
+  // the mode this fork targets — while writes from the settings page stay live for
+  // the session without persisting anywhere.
+  const settings: SettingsScopeLike<UsageStateConfig> = (() => {
+    let doc: Record<string, unknown> | undefined
+    let snapshot = {
+      status: 'ready' as const,
+      value: normalizeConfig(doc),
+      revision: 1,
+      writable: true,
+      mode: 'memory' as const,
+    }
+    const listeners = new Set<() => void>()
+    const flush = () => {
+      snapshot = { ...snapshot, value: normalizeConfig(doc) }
+      for (const listener of listeners) listener()
+    }
+    return {
+      getSnapshot: () => snapshot,
+      subscribe: listener => (listeners.add(listener), () => listeners.delete(listener)),
+      set: async (field, value) => {
+        doc = { ...doc, [field]: value }
+        flush()
+      },
+      unset: async field => {
+        doc = { ...doc, [field]: undefined }
+        flush()
+      },
+      mutate: async ops => {
+        const next: Record<string, unknown> = { ...doc }
+        for (const op of ops) {
+          const key = String(op.path[op.path.length - 1] ?? '')
+          if (op.op === 'set') next[key] = op.value
+          else delete next[key]
+        }
+        doc = next
+        flush()
+      },
+    }
+  })()
 
-  // `remote.usageState` is contributed by this plugin, so it can never be declared
-  // in `inject` (it appears only after $mount); `ctx.get` is the inject-free read.
-  const usageStateRemote = () => remoteService<RemoteServiceLike>(ctx, 'remote.usageState')
+  // Fork note (dsh 0.1.7): the host half serves the same payloads over webServer
+  // HTTP routes (`src/host/http.ts`) instead of Typert RPC.
+  const httpGet = async <T,>(path: string): Promise<RemoteResult<T>> => {
+    try {
+      const response = await fetch(`${API_PREFIX}${path}`, { headers: { accept: 'application/json' } })
+      return (await response.json()) as RemoteResult<T>
+    } catch (error) {
+      return { ok: false, error: { message: error instanceof Error ? error.message : String(error) } }
+    }
+  }
 
   const store = new UsageStateClientStore({
-    getState: async force => {
-      const service = usageStateRemote()
-      if (service === undefined) return { ok: false, error: { message: 'remote not mounted' } }
-      return service.getState(force)
-    },
-    describeCredentials: async () => {
-      const service = usageStateRemote()
-      if (service === undefined) return { ok: false, error: { message: 'remote not mounted' } }
-      return service.describeCredentials()
-    },
+    getState: force => httpGet<UsageStateView>(`/state?force=${force ? 1 : 0}`),
+    describeCredentials: () => httpGet<CredentialReport>('/credentials'),
     modelCatalog: async () => {
       const session = remoteService<{ modelCatalog(): Promise<RemoteResult<ModelCatalogLike>> }>(ctx, 'remote.session')
       if (session === undefined) return { ok: false, error: { message: 'model catalog unavailable' } }
@@ -87,28 +89,13 @@ export function apply(ctx: ClientContextLike): void {
 
   // Mounting is asynchronous; the store stays empty (and the line stays quiet)
   // until the contribution is live, then fills on the first refresh.
+  // Fork note (dsh 0.1.7): the Typert `$mount` contribution is gone (HTTP instead);
+  // this effect now only seeds the first refresh.
   ctx.effect(() => {
-    let dispose: (() => void) | undefined
-    let cancelled = false
-    void ctx.remote.$mount(CONTRIBUTION).then(
-      off => {
-        if (cancelled) {
-          off()
-          return
-        }
-        dispose = off
-        void store.refresh(false)
-        // The settings page may have mounted before the contribution was live.
-        void store.refreshModels()
-        void store.refreshCredentials()
-      },
-      () => undefined,
-    )
-    return () => {
-      cancelled = true
-      dispose?.()
-    }
-  }, 'dsh-usage-state: remote contribution')
+    void store.refresh(false)
+    void store.refreshModels()
+    void store.refreshCredentials()
+  }, 'dsh-usage-state: initial refresh')
 
   ctx.effect(() => {
     const timer = setInterval(() => {

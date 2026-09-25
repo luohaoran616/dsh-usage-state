@@ -5,7 +5,8 @@ import { describeCredentials, resolveApiKey, type CredentialLookup } from './hos
 import { providerCredentialRefs, providerEndpointHints } from './host/provider-refs.ts'
 import { createTargetReader, type FetchLike } from './host/read.ts'
 import { UsageStateStore } from './host/refresh.ts'
-import { UsageStateService, USAGE_STATE_RPC_NAMESPACE, USAGE_STATE_SERVICE } from './host/service.ts'
+import { UsageStateService, USAGE_STATE_SERVICE } from './host/service.ts'
+import { registerHttpRoutes } from './host/http.ts'
 import { installUsageStateSettings, type SettingsServiceLike } from './host/settings.ts'
 import { ALL_SOURCES, findSource } from './host/sources/index.ts'
 import { resolveTargets, type UsageTarget } from './host/targets.ts'
@@ -16,7 +17,10 @@ import { resolveTargets, type UsageTarget } from './host/targets.ts'
  * from its own directory, where `@deepseek-ai/*` does not exist.
  */
 export interface PluginContextLike {
-  inject(names: readonly string[], callback: (ctx: { settings: SettingsServiceLike }) => void): void
+  inject(
+    names: readonly string[],
+    callback: (ctx: { settings: SettingsServiceLike; webServer: { register(route: unknown): void } }) => void,
+  ): void
   get(name: string): unknown
   on(event: string, handler: (...args: unknown[]) => void): () => void
   effect(callback: () => (() => void) | void, label?: string): void
@@ -24,6 +28,8 @@ export interface PluginContextLike {
   /** From the cordis timer plugin (see `inject` below). */
   timeout(callback: () => void, delay: number): () => void
   interval(callback: () => void, delay: number): () => void
+  /** Fork note (dsh 0.1.7): webServer HTTP routes replace the Typert RPC mount. */
+  webServer?: { register(route: unknown): void }
 }
 
 export interface UsageStateDeps {
@@ -108,16 +114,10 @@ export function provideUsageState(
   ctx: Pick<PluginContextLike, 'provide'>,
   service: UsageStateService,
 ): UsageStateService {
-  Object.defineProperty(service, 'typertRemote', {
-    configurable: false,
-    enumerable: false,
-    writable: false,
-    value: {
-      service,
-      serviceKey: USAGE_STATE_SERVICE,
-      namespace: USAGE_STATE_RPC_NAMESPACE,
-    },
-  })
+  // Fork note (dsh 0.1.7): the 0.1.5-era `typertRemote` service property is gone —
+  // the gateway no longer mounts protocol-0.1.5 namespaces, which left the client
+  // with "remote not mounted" on every read. Payloads travel over webServer HTTP
+  // routes instead (see `registerHttpRoutes` in `./host/http.ts`).
   ctx.provide(USAGE_STATE_SERVICE, service)
   return service
 }
@@ -221,5 +221,5 @@ export function createUsageState(ctx: PluginContextLike, deps: UsageStateDeps = 
 }
 
 export function apply(ctx: PluginContextLike): void {
-  createUsageState(ctx)
+  registerHttpRoutes(ctx, createUsageState(ctx))
 }
